@@ -1,8 +1,10 @@
 package com.financetracker.evolva.data.calc
 
+import com.financetracker.evolva.data.model.Account
 import com.financetracker.evolva.data.model.Transaction
 import com.financetracker.evolva.data.model.TransactionType
 import com.financetracker.evolva.data.model.TransferDirection
+import com.financetracker.evolva.data.model.homeAmount
 import java.time.YearMonth
 
 data class Totals(
@@ -40,12 +42,13 @@ object FinanceCalculator {
         var transferIn = 0.0
         var transferOut = 0.0
         transactions.forEach { t ->
+            val amt = t.homeAmount()
             when (t.type) {
-                TransactionType.INCOME -> income += t.amount
-                TransactionType.EXPENSE -> expense += t.amount
-                TransactionType.SAVINGS -> savings += t.amount
+                TransactionType.INCOME -> income += amt
+                TransactionType.EXPENSE -> expense += amt
+                TransactionType.SAVINGS -> savings += amt
                 TransactionType.TRANSFER -> {
-                    if (t.direction == TransferDirection.IN) transferIn += t.amount else transferOut += t.amount
+                    if (t.direction == TransferDirection.IN) transferIn += amt else transferOut += amt
                 }
             }
         }
@@ -69,16 +72,17 @@ object FinanceCalculator {
     }
 
     fun sumFor(transactions: List<Transaction>, type: TransactionType, month: YearMonth): Double =
-        transactions.filter { it.type == type && YearMonth.from(it.date) == month }.sumOf { it.amount }
+        transactions.filter { it.type == type && YearMonth.from(it.date) == month }
+            .sumOf { it.homeAmount() }
 
     fun spendForCategoryMonth(transactions: List<Transaction>, category: String, month: YearMonth): Double =
         transactions.filter {
             it.type == TransactionType.EXPENSE && it.category == category && YearMonth.from(it.date) == month
-        }.sumOf { it.amount }
+        }.sumOf { it.homeAmount() }
 
     fun transferNetFor(transactions: List<Transaction>, month: YearMonth): Double =
         transactions.filter { it.type == TransactionType.TRANSFER && YearMonth.from(it.date) == month }
-            .sumOf { if (it.direction == TransferDirection.IN) it.amount else -it.amount }
+            .sumOf { if (it.direction == TransferDirection.IN) it.homeAmount() else -it.homeAmount() }
 
     /** Last [n] months ending at [end] (inclusive), oldest first. */
     fun lastNMonths(n: Int, end: YearMonth = YearMonth.now()): List<YearMonth> =
@@ -89,5 +93,30 @@ object FinanceCalculator {
         if (spent >= limit) return BudgetState.OVER
         if (spent / limit >= 0.8) return BudgetState.WARN
         return BudgetState.OK
+    }
+
+    /** Signed home-currency effect of a transaction on its wallet balance. */
+    fun signedAccountDelta(tx: Transaction): Double {
+        val amt = tx.homeAmount()
+        return when (tx.type) {
+            TransactionType.INCOME -> amt
+            TransactionType.EXPENSE, TransactionType.SAVINGS -> -amt
+            TransactionType.TRANSFER ->
+                if (tx.direction == TransferDirection.IN) amt else -amt
+        }
+    }
+
+    fun accountBalance(account: Account, transactions: List<Transaction>): Double {
+        val delta = transactions
+            .filter { it.accountId == account.id }
+            .sumOf { signedAccountDelta(it) }
+        return account.openingBalance + delta
+    }
+
+    fun totalBudgetRemaining(transactions: List<Transaction>, budgets: List<com.financetracker.evolva.data.model.Budget>, month: YearMonth = YearMonth.now()): Double {
+        if (budgets.isEmpty()) return 0.0
+        val totalLimit = budgets.sumOf { it.limit }
+        val totalSpent = budgets.sumOf { spendForCategoryMonth(transactions, it.category, month) }
+        return (totalLimit - totalSpent).coerceAtLeast(0.0)
     }
 }

@@ -3,6 +3,7 @@ package com.financetracker.evolva.data.calc
 import com.financetracker.evolva.data.model.Transaction
 import com.financetracker.evolva.data.model.TransactionType
 import com.financetracker.evolva.data.model.TransferDirection
+import com.financetracker.evolva.data.model.homeAmount
 import java.time.YearMonth
 
 data class ForecastPoint(val month: YearMonth, val balance: Double)
@@ -32,10 +33,11 @@ object ForecastCalculator {
         val pastMonths = FinanceCalculator.lastNMonths(6)
         val priorPast = transactions.filter { YearMonth.from(it.date) < pastMonths.first() }
         var cum = priorPast.sumOf { t ->
+            val amt = t.homeAmount()
             when (t.type) {
-                TransactionType.INCOME -> t.amount
-                TransactionType.TRANSFER -> if (t.direction == TransferDirection.IN) t.amount else -t.amount
-                else -> -t.amount // expense, savings both reduce spendable cash
+                TransactionType.INCOME -> amt
+                TransactionType.TRANSFER -> if (t.direction == TransferDirection.IN) amt else -amt
+                else -> -amt // expense, savings both reduce spendable cash
             }
         }
         val pastCumulative = pastMonths.map { m ->

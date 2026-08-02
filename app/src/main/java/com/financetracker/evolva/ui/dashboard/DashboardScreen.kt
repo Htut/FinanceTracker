@@ -39,12 +39,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.financetracker.evolva.R
 import com.financetracker.evolva.data.calc.FinanceCalculator
 import com.financetracker.evolva.data.calc.InsightsCalculator
 import com.financetracker.evolva.data.export.DetailExport
@@ -128,8 +130,17 @@ fun DashboardScreen(viewModel: MainViewModel) {
     ) {
         item {
             Column {
-                Text("Finance Tracker", fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = FinanceColors.Text)
-                Text("Your money, at a glance", fontSize = 13.sp, color = FinanceColors.TextSoft)
+                Text(
+                    stringResource(R.string.dashboard_title),
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = FinanceColors.Text
+                )
+                Text(
+                    stringResource(R.string.dashboard_subtitle),
+                    fontSize = 13.sp,
+                    color = FinanceColors.TextSoft
+                )
             }
         }
 

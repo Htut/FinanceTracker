@@ -10,6 +10,24 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface FinanceDao {
 
+    @Query("SELECT * FROM accounts ORDER BY name ASC")
+    fun getAllAccounts(): Flow<List<AccountEntity>>
+
+    @Query("SELECT COUNT(*) FROM accounts")
+    suspend fun accountCount(): Int
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertAccount(account: AccountEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertAccounts(accounts: List<AccountEntity>)
+
+    @Query("DELETE FROM accounts WHERE id = :id")
+    suspend fun deleteAccount(id: String)
+
+    @Query("DELETE FROM accounts")
+    suspend fun deleteAllAccounts()
+
     @Query("SELECT * FROM transactions ORDER BY date DESC")
     fun getAllTransactions(): Flow<List<TransactionEntity>>
 

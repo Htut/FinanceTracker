@@ -1,5 +1,7 @@
 package com.financetracker.evolva.data.backup
 
+import com.financetracker.evolva.data.model.Account
+import com.financetracker.evolva.data.model.AccountKind
 import com.financetracker.evolva.data.model.Budget
 import com.financetracker.evolva.data.model.RecurringRule
 import com.financetracker.evolva.data.model.Transaction
@@ -20,7 +22,20 @@ data class TransactionDto(
     val time: String? = null,
     val note: String? = null,
     val direction: String? = null,
-    val recurringId: String? = null
+    val recurringId: String? = null,
+    val accountId: String? = null,
+    val receiptUri: String? = null,
+    val currencyCode: String? = null,
+    val exchangeRate: Double? = null
+)
+
+@Serializable
+data class AccountDto(
+    val id: String,
+    val name: String,
+    val kind: String,
+    val openingBalance: Double = 0.0,
+    val archived: Boolean = false
 )
 
 @Serializable
@@ -48,14 +63,17 @@ data class RecurringRuleDto(
 @Serializable
 data class BackupPayload(
     val app: String = "finance-tracker-android",
-    val version: Int = 1,
+    val version: Int = 2,
     val exportedAt: String,
     val currency: String,
     val transactions: List<TransactionDto> = emptyList(),
     val budgets: List<BudgetDto> = emptyList(),
     val recurring: List<RecurringRuleDto> = emptyList(),
     /** User-defined expense category names (built-ins are not stored here). */
-    val customExpenseCategories: List<String> = emptyList()
+    val customExpenseCategories: List<String> = emptyList(),
+    val accounts: List<AccountDto> = emptyList(),
+    /** Rates: foreign code → units of home currency per 1 foreign unit. */
+    val exchangeRates: Map<String, Double> = emptyMap()
 )
 
 // ---- Mappers between backup DTOs and domain models ----
@@ -63,7 +81,9 @@ data class BackupPayload(
 fun Transaction.toDto() = TransactionDto(
     id = id, type = type.name, category = category, amount = amount,
     date = date.toString(), time = time?.toString(),
-    note = note, direction = direction?.name, recurringId = recurringId
+    note = note, direction = direction?.name, recurringId = recurringId,
+    accountId = accountId, receiptUri = receiptUri,
+    currencyCode = currencyCode, exchangeRate = exchangeRate
 )
 
 fun TransactionDto.toDomain() = Transaction(
@@ -75,7 +95,24 @@ fun TransactionDto.toDomain() = Transaction(
     time = time?.let { LocalTime.parse(it) },
     note = note,
     direction = direction?.let { TransferDirection.valueOf(it) },
-    recurringId = recurringId
+    recurringId = recurringId,
+    accountId = accountId,
+    receiptUri = receiptUri,
+    currencyCode = currencyCode,
+    exchangeRate = exchangeRate
+)
+
+fun Account.toDto() = AccountDto(
+    id = id, name = name, kind = kind.name,
+    openingBalance = openingBalance, archived = archived
+)
+
+fun AccountDto.toDomain() = Account(
+    id = id,
+    name = name,
+    kind = runCatching { AccountKind.valueOf(kind) }.getOrDefault(AccountKind.CASH),
+    openingBalance = openingBalance,
+    archived = archived
 )
 
 fun Budget.toDto() = BudgetDto(category = category, limit = limit)

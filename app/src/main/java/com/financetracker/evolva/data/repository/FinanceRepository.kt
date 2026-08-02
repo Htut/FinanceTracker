@@ -5,6 +5,7 @@ import com.financetracker.evolva.data.db.BudgetEntity
 import com.financetracker.evolva.data.db.FinanceDao
 import com.financetracker.evolva.data.db.toDomain
 import com.financetracker.evolva.data.db.toEntity
+import com.financetracker.evolva.data.model.Account
 import com.financetracker.evolva.data.model.Budget
 import com.financetracker.evolva.data.model.RecurringRule
 import com.financetracker.evolva.data.model.Transaction
@@ -20,6 +21,9 @@ import kotlinx.coroutines.flow.map
  */
 class FinanceRepository(private val dao: FinanceDao) {
 
+    val accounts: Flow<List<Account>> =
+        dao.getAllAccounts().map { list -> list.map { it.toDomain() } }
+
     val transactions: Flow<List<Transaction>> =
         dao.getAllTransactions().map { list -> list.map { it.toDomain() } }
 
@@ -28,6 +32,16 @@ class FinanceRepository(private val dao: FinanceDao) {
 
     val recurringRules: Flow<List<RecurringRule>> =
         dao.getAllRecurringRules().map { list -> list.map { it.toDomain() } }
+
+    suspend fun ensureDefaultAccounts() {
+        if (dao.accountCount() == 0) {
+            dao.upsertAccounts(Account.defaults().map { it.toEntity() })
+        }
+    }
+
+    suspend fun upsertAccount(account: Account) = dao.upsertAccount(account.toEntity())
+
+    suspend fun deleteAccount(id: String) = dao.deleteAccount(id)
 
     suspend fun addTransaction(transaction: Transaction) =
         dao.insertTransaction(transaction.toEntity())
@@ -76,16 +90,34 @@ class FinanceRepository(private val dao: FinanceDao) {
         result.updatedRules.forEach { dao.updateRecurringRule(it.toEntity()) }
     }
 
-    suspend fun replaceAll(transactions: List<Transaction>, budgets: List<Budget>, rules: List<RecurringRule>) {
+    suspend fun replaceAll(
+        transactions: List<Transaction>,
+        budgets: List<Budget>,
+        rules: List<RecurringRule>,
+        accounts: List<Account> = emptyList()
+    ) {
         dao.deleteAllTransactions()
         dao.deleteAllBudgets()
         dao.deleteAllRecurringRules()
+        dao.deleteAllAccounts()
+        if (accounts.isEmpty()) {
+            dao.upsertAccounts(Account.defaults().map { it.toEntity() })
+        } else {
+            dao.upsertAccounts(accounts.map { it.toEntity() })
+        }
         dao.insertTransactions(transactions.map { it.toEntity() })
         budgets.forEach { dao.upsertBudget(it.toEntity()) }
         dao.insertRecurringRules(rules.map { it.toEntity() })
     }
 
-    suspend fun mergeIn(transactions: List<Transaction>, budgets: List<Budget>, rules: List<RecurringRule>) {
+    suspend fun mergeIn(
+        transactions: List<Transaction>,
+        budgets: List<Budget>,
+        rules: List<RecurringRule>,
+        accounts: List<Account> = emptyList()
+    ) {
+        ensureDefaultAccounts()
+        accounts.forEach { dao.upsertAccount(it.toEntity()) }
         dao.insertTransactions(transactions.map { it.toEntity() })
         val existingCats = this.budgets.first().map { it.category }.toSet()
         budgets.forEach { if (it.category !in existingCats) dao.upsertBudget(it.toEntity()) }

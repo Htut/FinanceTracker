@@ -1,5 +1,8 @@
 package com.financetracker.evolva.ui.transactions
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -43,20 +46,25 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.financetracker.evolva.data.model.Categories
+import com.financetracker.evolva.data.model.Account
+import com.financetracker.evolva.data.model.AppCurrency
 import com.financetracker.evolva.data.model.Transaction
 import com.financetracker.evolva.data.model.TransactionType
 import com.financetracker.evolva.data.model.TransferDirection
+import com.financetracker.evolva.data.receipt.ReceiptStore
 import com.financetracker.evolva.ui.theme.FinanceColors
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
+import java.io.File
 import java.util.UUID
 
 /**
@@ -67,12 +75,16 @@ import java.util.UUID
 @Composable
 fun AddEditTransactionSheet(
     existing: Transaction?,
+    accounts: List<Account>,
+    homeCurrency: AppCurrency,
+    exchangeRates: Map<String, Double>,
     customExpenseCategories: List<String> = emptyList(),
     onAddExpenseCategory: ((String) -> Unit)? = null,
     onDismiss: () -> Unit,
     onSave: (Transaction, Boolean) -> Unit,
     onStopRecurring: (String) -> Unit
 ) {
+    val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     var type by remember { mutableStateOf(existing?.type ?: TransactionType.EXPENSE) }
@@ -93,6 +105,30 @@ fun AddEditTransactionSheet(
     var categoryMenuExpanded by remember { mutableStateOf(false) }
     var showAddExpenseType by remember { mutableStateOf(false) }
     var newExpenseTypeText by remember { mutableStateOf("") }
+    var accountId by remember(existing, accounts) {
+        mutableStateOf(existing?.accountId ?: accounts.firstOrNull { !it.archived }?.id)
+    }
+    var accountMenuExpanded by remember { mutableStateOf(false) }
+    var selectedCurrency by remember(existing, homeCurrency) {
+        mutableStateOf(AppCurrency.fromCode(existing?.currencyCode ?: homeCurrency.code))
+    }
+    var rateText by remember(existing, homeCurrency, exchangeRates) {
+        val selected = AppCurrency.fromCode(existing?.currencyCode ?: homeCurrency.code)
+        mutableStateOf(
+            formatPlain(
+                if (selected == homeCurrency) 1.0
+                else existing?.exchangeRate ?: exchangeRates[selected.code] ?: 1.0
+            )
+        )
+    }
+    var receiptUri by remember(existing) { mutableStateOf(existing?.receiptUri) }
+    val receiptPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        uri?.let {
+            receiptUri = ReceiptStore.copyFromUri(context, it)
+        }
+    }
 
     val categories = Categories.forType(type, customExpenseCategories)
     if (category !in categories) {
@@ -100,6 +136,8 @@ fun AddEditTransactionSheet(
     }
 
     val amountValid = amountText.toDoubleOrNull()?.let { it > 0.0 } ?: false
+    val rateValid = selectedCurrency == homeCurrency ||
+        (rateText.toDoubleOrNull()?.let { it > 0.0 } == true)
     val timeLabel = time.format(DateTimeFormatter.ofPattern("HH:mm"))
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
@@ -143,6 +181,38 @@ fun AddEditTransactionSheet(
                         onClick = { direction = TransferDirection.IN },
                         label = { Text("Received") }
                     )
+                }
+            }
+
+            Spacer(Modifier.height(14.dp))
+            ExposedDropdownMenuBox(
+                expanded = accountMenuExpanded,
+                onExpandedChange = { accountMenuExpanded = it }
+            ) {
+                val selectedAccount = accounts.find { it.id == accountId }
+                OutlinedTextField(
+                    value = selectedAccount?.name ?: "Unspecified",
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Account") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(accountMenuExpanded) },
+                    modifier = Modifier
+                        .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                        .fillMaxWidth()
+                )
+                ExposedDropdownMenu(
+                    expanded = accountMenuExpanded,
+                    onDismissRequest = { accountMenuExpanded = false }
+                ) {
+                    accounts.filterNot { it.archived }.forEach { account ->
+                        DropdownMenuItem(
+                            text = { Text(account.name) },
+                            onClick = {
+                                accountId = account.id
+                                accountMenuExpanded = false
+                            }
+                        )
+                    }
                 }
             }
 
@@ -194,6 +264,36 @@ fun AddEditTransactionSheet(
             )
 
             Spacer(Modifier.height(14.dp))
+            Text("Currency", fontSize = 12.sp, color = FinanceColors.TextSoft)
+            Spacer(Modifier.height(6.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                (listOf(homeCurrency) + AppCurrency.entries.filter { it != homeCurrency }).forEach { currency ->
+                    FilterChip(
+                        selected = selectedCurrency == currency,
+                        onClick = {
+                            selectedCurrency = currency
+                            rateText = if (currency == homeCurrency) "1"
+                            else formatPlain(exchangeRates[currency.code] ?: 1.0)
+                        },
+                        label = { Text("${currency.symbol} ${currency.code}") }
+                    )
+                }
+            }
+            if (selectedCurrency != homeCurrency) {
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = rateText,
+                    onValueChange = { input ->
+                        rateText = input.filter { it.isDigit() || it == '.' }
+                    },
+                    label = { Text("1 ${selectedCurrency.code} in ${homeCurrency.code}") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+            Spacer(Modifier.height(14.dp))
             OutlinedTextField(
                 value = date.format(DateTimeFormatter.ISO_LOCAL_DATE),
                 onValueChange = {},
@@ -240,6 +340,29 @@ fun AddEditTransactionSheet(
                 modifier = Modifier.fillMaxWidth()
             )
 
+            Spacer(Modifier.height(14.dp))
+            Text("Receipt (optional)", fontSize = 12.sp, color = FinanceColors.TextSoft)
+            receiptUri?.let { value ->
+                Text(
+                    File(value).name.ifBlank { value },
+                    fontSize = 12.sp,
+                    color = FinanceColors.Text,
+                    modifier = Modifier.padding(vertical = 6.dp)
+                )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(
+                    onClick = {
+                        receiptPicker.launch(
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                        )
+                    }
+                ) { Text(if (receiptUri == null) "Add image" else "Replace image") }
+                if (receiptUri != null) {
+                    TextButton(onClick = { receiptUri = null }) { Text("Clear") }
+                }
+            }
+
             if (existing == null) {
                 Spacer(Modifier.height(10.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -268,11 +391,19 @@ fun AddEditTransactionSheet(
                             time = if (includeTime) time else null,
                             note = note.ifBlank { null },
                             direction = if (type == TransactionType.TRANSFER) direction else null,
-                            recurringId = existing?.recurringId
+                            recurringId = existing?.recurringId,
+                            accountId = accountId,
+                            receiptUri = receiptUri,
+                            currencyCode = selectedCurrency.code,
+                            exchangeRate = if (selectedCurrency == homeCurrency) {
+                                1.0
+                            } else {
+                                rateText.toDoubleOrNull() ?: return@Button
+                            }
                         )
                         onSave(tx, repeatMonthly)
                     },
-                    enabled = amountValid,
+                    enabled = amountValid && rateValid,
                     modifier = Modifier.weight(1f)
                 ) { Text(if (existing == null) "Add" else "Save") }
             }

@@ -1,5 +1,6 @@
 package com.financetracker.evolva.ui
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -7,7 +8,10 @@ import androidx.lifecycle.viewmodel.CreationExtras
 import com.financetracker.evolva.data.AppConstants
 import com.financetracker.evolva.data.backup.BackupManager
 import com.financetracker.evolva.data.backup.toDomain
+import com.financetracker.evolva.data.locale.LocaleHelper
+import com.financetracker.evolva.data.model.Account
 import com.financetracker.evolva.data.model.AppCurrency
+import com.financetracker.evolva.data.model.AppLanguage
 import com.financetracker.evolva.data.model.Budget
 import com.financetracker.evolva.data.model.Categories
 import com.financetracker.evolva.data.model.DateFilter
@@ -18,10 +22,12 @@ import com.financetracker.evolva.data.model.filteredBy
 import com.financetracker.evolva.data.notify.BudgetAlertNotifier
 import com.financetracker.evolva.data.prefs.PasswordChangeResult
 import com.financetracker.evolva.data.prefs.SettingsDataStore
-import com.financetracker.evolva.data.repository.FinanceRepository
+import com.financetracker.evolva.data.profile.ActiveProfileSession
+import com.financetracker.evolva.data.profile.ProfileIds
+import com.financetracker.evolva.data.profile.TrackerProfile
+import com.financetracker.evolva.data.receipt.ReceiptStore
 import com.financetracker.evolva.data.templates.AppTemplate
 import com.financetracker.evolva.ui.theme.AppThemeOption
-import android.content.Context
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -37,33 +43,47 @@ sealed class ImportResult {
     object Invalid : ImportResult()
 }
 
-/**
- * Single shared ViewModel for the whole app (Dashboard/Transactions/Budget/
- * Settings all read from this), scoped to the Activity so every tab sees
- * the same live data — matching the web app, where everything reads from
- * one in-memory `transactions` array.
- */
+sealed class UndoAction {
+    data class DeleteTransaction(val transaction: Transaction) : UndoAction()
+    data class ClearAll(val transactions: List<Transaction>) : UndoAction()
+}
+
 class MainViewModel(
-    private val repository: FinanceRepository,
+    private val profileSession: ActiveProfileSession,
     private val settingsDataStore: SettingsDataStore
 ) : ViewModel() {
 
-    val transactions: StateFlow<List<Transaction>> = repository.transactions
+    private val repository get() = profileSession.requireRepository()
+    private val profileSettings get() = profileSession.requireSettings()
+
+    val profiles: StateFlow<List<TrackerProfile>> = profileSession.profiles
+    val activeProfile: StateFlow<TrackerProfile> = profileSession.activeProfile
+
+    val accounts: StateFlow<List<Account>> = profileSession.accounts
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val budgets: StateFlow<List<Budget>> = repository.budgets
+    val transactions: StateFlow<List<Transaction>> = profileSession.transactions
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val recurringRules: StateFlow<List<RecurringRule>> = repository.recurringRules
+    val budgets: StateFlow<List<Budget>> = profileSession.budgets
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val currency: StateFlow<AppCurrency> = settingsDataStore.currency
+    val recurringRules: StateFlow<List<RecurringRule>> = profileSession.recurringRules
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val currency: StateFlow<AppCurrency> = profileSession.currency
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AppCurrency.MYR)
+
+    val language: StateFlow<AppLanguage> = settingsDataStore.language
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AppLanguage.ENGLISH)
+
+    val exchangeRates: StateFlow<Map<String, Double>> = profileSession.exchangeRates
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     val hasAppPassword: StateFlow<Boolean> = settingsDataStore.hasAppPassword
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
-    val filterAutoCloseSeconds: StateFlow<Int> = settingsDataStore.filterAutoCloseSeconds
+    val filterAutoCloseSeconds: StateFlow<Int> = profileSession.filterAutoCloseSeconds
         .stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5000),
@@ -74,10 +94,10 @@ class MainViewModel(
         .map { AppThemeOption.fromId(it) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AppThemeOption.CLASSIC)
 
-    val customExpenseCategories: StateFlow<List<String>> = settingsDataStore.customExpenseCategories
+    val customExpenseCategories: StateFlow<List<String>> = profileSession.customExpenseCategories
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val budgetAlertsEnabled: StateFlow<Boolean> = settingsDataStore.budgetAlertsEnabled
+    val budgetAlertsEnabled: StateFlow<Boolean> = profileSession.budgetAlertsEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     private val _dateFilter = MutableStateFlow<DateFilter>(DateFilter.All)
@@ -90,11 +110,43 @@ class MainViewModel(
     private val _infoMessage = MutableStateFlow<String?>(null)
     val infoMessage: StateFlow<String?> = _infoMessage
 
+    private val _undoAction = MutableStateFlow<UndoAction?>(null)
+    val undoAction: StateFlow<UndoAction?> = _undoAction
+
     private val _forecastHorizon = MutableStateFlow(6)
     val forecastHorizon: StateFlow<Int> = _forecastHorizon
 
+    private val _unlocked = MutableStateFlow(false)
+    val unlocked: StateFlow<Boolean> = _unlocked
+
     init {
-        viewModelScope.launch { repository.runRecurringEngine() }
+        viewModelScope.launch {
+            LocaleHelper.apply(settingsDataStore.language.first())
+            if (!settingsDataStore.hasAppPassword.first()) {
+                _unlocked.value = true
+            }
+        }
+        viewModelScope.launch {
+            settingsDataStore.hasAppPassword.collect { has ->
+                if (!has) _unlocked.value = true
+            }
+        }
+    }
+
+    fun unlockWithPassword(password: String, onResult: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            val ok = settingsDataStore.verifyAppPassword(password)
+            if (ok) _unlocked.value = true
+            onResult(ok)
+        }
+    }
+
+    fun unlockSession() {
+        _unlocked.value = true
+    }
+
+    fun lockSession() {
+        if (hasAppPassword.value) _unlocked.value = false
     }
 
     fun setForecastHorizon(months: Int) {
@@ -109,12 +161,27 @@ class MainViewModel(
         _infoMessage.value = null
     }
 
+    fun dismissUndo() {
+        _undoAction.value = null
+    }
+
     fun setCurrency(currency: AppCurrency) {
-        viewModelScope.launch { settingsDataStore.setCurrency(currency) }
+        viewModelScope.launch { profileSettings.setCurrency(currency) }
+    }
+
+    fun setLanguage(language: AppLanguage) {
+        viewModelScope.launch {
+            settingsDataStore.setLanguage(language)
+            LocaleHelper.apply(language)
+        }
+    }
+
+    fun setExchangeRate(foreignCode: String, rateToHome: Double) {
+        viewModelScope.launch { profileSettings.setExchangeRate(foreignCode, rateToHome) }
     }
 
     fun setFilterAutoCloseSeconds(seconds: Int) {
-        viewModelScope.launch { settingsDataStore.setFilterAutoCloseSeconds(seconds) }
+        viewModelScope.launch { profileSettings.setFilterAutoCloseSeconds(seconds) }
     }
 
     fun setAppTheme(theme: AppThemeOption) {
@@ -122,13 +189,12 @@ class MainViewModel(
     }
 
     fun setBudgetAlertsEnabled(enabled: Boolean) {
-        viewModelScope.launch { settingsDataStore.setBudgetAlertsEnabled(enabled) }
+        viewModelScope.launch { profileSettings.setBudgetAlertsEnabled(enabled) }
     }
 
-    /** Posts notifications for near/over budgets when the setting is on. */
     fun refreshBudgetAlerts(context: Context) {
         viewModelScope.launch {
-            if (!settingsDataStore.budgetAlertsEnabled.first()) return@launch
+            if (!profileSession.budgetAlertsEnabled.first()) return@launch
             val alerts = BudgetAlertNotifier.collectAlerts(transactions.value, budgets.value)
             BudgetAlertNotifier.notifyAlerts(context.applicationContext, alerts, currency.value)
         }
@@ -136,7 +202,7 @@ class MainViewModel(
 
     fun addCustomExpenseCategory(name: String, onResult: ((Boolean) -> Unit)? = null) {
         viewModelScope.launch {
-            val ok = settingsDataStore.addCustomExpenseCategory(name)
+            val ok = profileSettings.addCustomExpenseCategory(name)
             onResult?.invoke(ok)
             if (!ok) {
                 _infoMessage.value =
@@ -146,7 +212,15 @@ class MainViewModel(
     }
 
     fun removeCustomExpenseCategory(name: String) {
-        viewModelScope.launch { settingsDataStore.removeCustomExpenseCategory(name) }
+        viewModelScope.launch { profileSettings.removeCustomExpenseCategory(name) }
+    }
+
+    fun upsertAccount(account: Account) {
+        viewModelScope.launch { repository.upsertAccount(account) }
+    }
+
+    fun deleteAccount(id: String) {
+        viewModelScope.launch { repository.deleteAccount(id) }
     }
 
     suspend fun verifyAppPassword(password: String): Boolean =
@@ -187,8 +261,33 @@ class MainViewModel(
         viewModelScope.launch { repository.updateTransaction(transaction) }
     }
 
-    fun deleteTransaction(id: String) {
-        viewModelScope.launch { repository.deleteTransaction(id) }
+    fun deleteTransaction(id: String, context: Context? = null) {
+        viewModelScope.launch {
+            val existing = transactions.value.find { it.id == id } ?: return@launch
+            repository.deleteTransaction(id)
+            context?.let { ReceiptStore.deleteIfOwned(it, existing.receiptUri) }
+            _undoAction.value = UndoAction.DeleteTransaction(existing)
+        }
+    }
+
+    fun clearAllTransactions() {
+        viewModelScope.launch {
+            val snapshot = transactions.value
+            repository.clearTransactions()
+            _undoAction.value = UndoAction.ClearAll(snapshot)
+            _infoMessage.value = null
+        }
+    }
+
+    fun undoLastAction() {
+        viewModelScope.launch {
+            when (val action = _undoAction.value) {
+                is UndoAction.DeleteTransaction -> repository.addTransaction(action.transaction)
+                is UndoAction.ClearAll -> repository.addTransactions(action.transactions)
+                null -> Unit
+            }
+            _undoAction.value = null
+        }
     }
 
     fun stopRecurring(ruleId: String) {
@@ -215,23 +314,47 @@ class MainViewModel(
         viewModelScope.launch { repository.updateRecurringRule(rule) }
     }
 
-    fun loadTemplate(template: AppTemplate) {
+    fun switchProfile(profileId: String) {
         viewModelScope.launch {
-            val rows = template.generate()
-            repository.addTransactions(rows)
-            template.budgets?.let { repository.setBudgetsIfAbsent(it) }
-            val budgetNote = if (template.budgets != null) " Budget limits were applied where missing." else ""
-            _infoMessage.value =
-                "Template \"${template.label}\" loaded.\n\n${rows.size} transactions were added.$budgetNote"
+            try {
+                profileSession.switchTo(profileId)
+                _undoAction.value = null
+                _dateFilter.value = DateFilter.All
+                _infoMessage.value = "Switched to \"${activeProfile.value.displayName}\"."
+            } catch (e: Exception) {
+                _infoMessage.value = e.message ?: "Could not switch profile."
+            }
         }
     }
 
-    fun clearAllTransactions() {
+    fun setupTemplateProfile(template: AppTemplate) {
         viewModelScope.launch {
-            val count = transactions.value.size
-            repository.clearTransactions()
-            _infoMessage.value =
-                "All transactions cleared.\n\n$count transaction${if (count == 1) "" else "s"} removed. Budgets and recurring rules were kept."
+            try {
+                val profile = profileSession.setupTemplate(template)
+                _undoAction.value = null
+                _dateFilter.value = DateFilter.All
+                _infoMessage.value =
+                    "Profile \"${profile.displayName}\" is ready with sample data."
+            } catch (e: Exception) {
+                _infoMessage.value = e.message ?: "Could not set up template."
+            }
+        }
+    }
+
+    fun deleteTemplateProfile(profileId: String) {
+        viewModelScope.launch {
+            if (profileId == ProfileIds.PERSONAL) {
+                _infoMessage.value = "My Tracker cannot be deleted."
+                return@launch
+            }
+            try {
+                val name = profiles.value.find { it.id == profileId }?.displayName ?: "profile"
+                profileSession.deleteTemplateProfile(profileId)
+                _undoAction.value = null
+                _infoMessage.value = "Deleted \"$name\"."
+            } catch (e: Exception) {
+                _infoMessage.value = e.message ?: "Could not delete profile."
+            }
         }
     }
 
@@ -241,7 +364,9 @@ class MainViewModel(
             transactions = transactions.value,
             budgets = budgets.value,
             recurring = recurringRules.value,
-            customExpenseCategories = customExpenseCategories.value
+            customExpenseCategories = customExpenseCategories.value,
+            accounts = accounts.value,
+            exchangeRates = exchangeRates.value
         )
     )
 
@@ -252,6 +377,7 @@ class MainViewModel(
         val importedTransactions = payload.transactions.map { it.toDomain() }
         val importedBudgets = payload.budgets.map { it.toDomain() }
         val importedRules = payload.recurring.map { it.toDomain() }
+        val importedAccounts = payload.accounts.map { it.toDomain() }
         val categoriesFromData = importedTransactions
             .asSequence()
             .filter { it.type == TransactionType.EXPENSE }
@@ -265,19 +391,31 @@ class MainViewModel(
 
         viewModelScope.launch {
             if (replace) {
-                repository.replaceAll(importedTransactions, importedBudgets, importedRules)
-                settingsDataStore.setCurrency(AppCurrency.fromCode(payload.currency))
-                settingsDataStore.setCustomExpenseCategories(importedCustomCategories)
+                repository.replaceAll(
+                    importedTransactions, importedBudgets, importedRules, importedAccounts
+                )
+                profileSettings.setCurrency(AppCurrency.fromCode(payload.currency))
+                profileSettings.setCustomExpenseCategories(importedCustomCategories)
+                if (payload.exchangeRates.isNotEmpty()) {
+                    profileSettings.setExchangeRates(payload.exchangeRates)
+                }
                 _infoMessage.value =
-                    "Backup imported and replaced existing data.\n\n${importedTransactions.size} transactions restored."
+                    "Backup imported and replaced data in this profile.\n\n${importedTransactions.size} transactions restored."
             } else {
-                repository.mergeIn(importedTransactions, importedBudgets, importedRules)
+                repository.mergeIn(
+                    importedTransactions, importedBudgets, importedRules, importedAccounts
+                )
                 val merged = Categories.normalizeCustom(
                     customExpenseCategories.value + importedCustomCategories
                 )
-                settingsDataStore.setCustomExpenseCategories(merged)
+                profileSettings.setCustomExpenseCategories(merged)
+                if (payload.exchangeRates.isNotEmpty()) {
+                    profileSettings.setExchangeRates(
+                        exchangeRates.value + payload.exchangeRates
+                    )
+                }
                 _infoMessage.value =
-                    "Backup imported and merged.\n\n${importedTransactions.size} transactions added."
+                    "Backup imported and merged into this profile.\n\n${importedTransactions.size} transactions added."
             }
         }
         return ImportResult.Success(importedTransactions.size)
@@ -285,13 +423,13 @@ class MainViewModel(
 }
 
 class MainViewModelFactory(
-    private val repository: FinanceRepository,
+    private val profileSession: ActiveProfileSession,
     private val settingsDataStore: SettingsDataStore
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T {
         if (modelClass.isAssignableFrom(MainViewModel::class.java)) {
-            return MainViewModel(repository, settingsDataStore) as T
+            return MainViewModel(profileSession, settingsDataStore) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class: $modelClass")
     }

@@ -11,9 +11,38 @@ enum class TransactionType { INCOME, EXPENSE, SAVINGS, TRANSFER }
 enum class TransferDirection { OUT, IN }
 
 enum class AppCurrency(val code: String, val symbol: String, val decimals: Int) {
+    // Regional defaults first
     MYR("MYR", "RM", 2),
     USD("USD", "$", 2),
-    MMK("MMK", "K", 0);
+    MMK("MMK", "Ks", 0),
+    SGD("SGD", "S$", 2),
+    IDR("IDR", "Rp", 0),
+    THB("THB", "฿", 2),
+    VND("VND", "₫", 0),
+    PHP("PHP", "₱", 2),
+    // Major world
+    EUR("EUR", "€", 2),
+    GBP("GBP", "£", 2),
+    JPY("JPY", "¥", 0),
+    CNY("CNY", "¥", 2),
+    KRW("KRW", "₩", 0),
+    INR("INR", "₹", 2),
+    AUD("AUD", "A$", 2),
+    CAD("CAD", "C$", 2),
+    CHF("CHF", "CHF", 2),
+    HKD("HKD", "HK$", 2),
+    TWD("TWD", "NT$", 0),
+    NZD("NZD", "NZ$", 2),
+    SAR("SAR", "﷼", 2),
+    AED("AED", "د.إ", 2),
+    TRY("TRY", "₺", 2),
+    RUB("RUB", "₽", 2),
+    BRL("BRL", "R$", 2),
+    MXN("MXN", "MX$", 2),
+    ZAR("ZAR", "R", 2),
+    PKR("PKR", "₨", 2),
+    BDT("BDT", "৳", 2),
+    EGP("EGP", "E£", 2);
 
     companion object {
         fun fromCode(code: String?): AppCurrency = entries.find { it.code == code } ?: MYR
@@ -76,6 +105,28 @@ object Categories {
         expense.any { it.equals(name.trim(), ignoreCase = true) }
 }
 
+enum class AccountKind { CASH, BANK, EWALLET }
+
+data class Account(
+    val id: String = UUID.randomUUID().toString(),
+    val name: String,
+    val kind: AccountKind,
+    val openingBalance: Double = 0.0,
+    val archived: Boolean = false
+) {
+    companion object {
+        const val ID_CASH = "cash"
+        const val ID_BANK = "bank"
+        const val ID_EWALLET = "ewallet"
+
+        fun defaults(): List<Account> = listOf(
+            Account(id = ID_CASH, name = "Cash", kind = AccountKind.CASH),
+            Account(id = ID_BANK, name = "Bank", kind = AccountKind.BANK),
+            Account(id = ID_EWALLET, name = "E-Wallet", kind = AccountKind.EWALLET)
+        )
+    }
+}
+
 data class Transaction(
     val id: String = UUID.randomUUID().toString(),
     val type: TransactionType,
@@ -88,8 +139,22 @@ data class Transaction(
     // Only meaningful when type == TRANSFER: OUT = money sent, IN = received.
     val direction: TransferDirection? = null,
     // Set when this transaction was auto-posted by a RecurringRule.
-    val recurringId: String? = null
+    val recurringId: String? = null,
+    /** Wallet this transaction affects; null = legacy / unspecified. */
+    val accountId: String? = null,
+    /** Local file path or content URI for an optional receipt image. */
+    val receiptUri: String? = null,
+    /** Currency of [amount]; null means app home currency. */
+    val currencyCode: String? = null,
+    /** Units of home currency per 1 unit of [currencyCode]. Null/blank = 1.0. */
+    val exchangeRate: Double? = null
 )
+
+/** Convert transaction amount into the app's home currency. */
+fun Transaction.homeAmount(): Double {
+    val rate = exchangeRate?.takeIf { it > 0 } ?: 1.0
+    return amount * rate
+}
 
 private val TIME_FMT: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 

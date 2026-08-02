@@ -35,9 +35,11 @@ import androidx.compose.foundation.background
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.financetracker.evolva.R
 import com.financetracker.evolva.data.calc.BudgetState
 import com.financetracker.evolva.data.calc.FinanceCalculator
 import com.financetracker.evolva.data.calc.ForecastCalculator
@@ -103,9 +105,17 @@ fun BudgetScreen(viewModel: MainViewModel) {
     ) {
         item {
             Column {
-                Text("Budget", fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = FinanceColors.Text)
                 Text(
-                    "Limits for ${currentMonth.month.getDisplayName(TextStyle.FULL, locale)} and where cash flow is headed",
+                    stringResource(R.string.budget_title),
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = FinanceColors.Text
+                )
+                Text(
+                    stringResource(
+                        R.string.budget_subtitle,
+                        currentMonth.month.getDisplayName(TextStyle.FULL, locale)
+                    ),
                     fontSize = 13.sp,
                     color = FinanceColors.TextSoft
                 )

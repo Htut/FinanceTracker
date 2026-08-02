@@ -1,5 +1,6 @@
 package com.financetracker.evolva.data.backup
 
+import com.financetracker.evolva.data.model.Account
 import com.financetracker.evolva.data.model.AppCurrency
 import com.financetracker.evolva.data.model.Budget
 import com.financetracker.evolva.data.model.RecurringRule
@@ -26,14 +27,18 @@ object BackupManager {
         transactions: List<Transaction>,
         budgets: List<Budget>,
         recurring: List<RecurringRule>,
-        customExpenseCategories: List<String> = emptyList()
+        customExpenseCategories: List<String> = emptyList(),
+        accounts: List<Account> = emptyList(),
+        exchangeRates: Map<String, Double> = emptyMap()
     ): BackupPayload = BackupPayload(
         exportedAt = Instant.now().toString(),
         currency = currency.code,
         transactions = transactions.map { it.toDto() },
         budgets = budgets.map { it.toDto() },
         recurring = recurring.map { it.toDto() },
-        customExpenseCategories = customExpenseCategories
+        customExpenseCategories = customExpenseCategories,
+        accounts = accounts.map { it.toDto() },
+        exchangeRates = exchangeRates
     )
 
     fun toJson(payload: BackupPayload): String =
@@ -46,8 +51,11 @@ object BackupManager {
         null
     }
 
-    fun toCsv(transactions: List<Transaction>, currencyCode: String): String {
-        val header = listOf("Date", "Time", "Type", "Direction", "Category", "Note", "Amount", "Currency")
+    fun toCsv(transactions: List<Transaction>, homeCurrencyCode: String): String {
+        val header = listOf(
+            "Date", "Time", "Type", "Direction", "Category", "Note",
+            "Amount", "Currency", "ExchangeRate", "AccountId"
+        )
         val rows = transactions.sortedWith(compareBy({ it.date }, { it.time })).map { t ->
             listOf(
                 t.date.toString(),
@@ -57,7 +65,9 @@ object BackupManager {
                 t.category,
                 (t.note ?: "").replace(",", " "),
                 t.amount.toString(),
-                currencyCode
+                t.currencyCode ?: homeCurrencyCode,
+                t.exchangeRate?.toString().orEmpty(),
+                t.accountId.orEmpty()
             )
         }
         return (listOf(header) + rows).joinToString("\n") { row -> row.joinToString(",") }

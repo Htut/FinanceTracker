@@ -54,6 +54,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -63,15 +64,21 @@ import com.financetracker.evolva.R
 import com.financetracker.evolva.data.AppConstants
 import com.financetracker.evolva.data.backup.BackupManager
 import com.financetracker.evolva.data.model.AppCurrency
+import com.financetracker.evolva.data.model.AppLanguage
 import com.financetracker.evolva.data.model.RecurringRule
 import com.financetracker.evolva.data.model.TransactionType
 import com.financetracker.evolva.data.model.TransferDirection
 import com.financetracker.evolva.data.model.formatAmount
 import com.financetracker.evolva.data.prefs.PasswordChangeResult
+import com.financetracker.evolva.data.profile.ProfileIds
+import com.financetracker.evolva.data.profile.ProfileKind
+import com.financetracker.evolva.data.profile.TrackerProfile
 import com.financetracker.evolva.data.security.DeviceCredentialAuth
+import com.financetracker.evolva.data.templates.AppTemplate
 import com.financetracker.evolva.data.templates.TEMPLATES
 import com.financetracker.evolva.ui.ImportResult
 import com.financetracker.evolva.ui.MainViewModel
+import com.financetracker.evolva.ui.accounts.AccountsSection
 import com.financetracker.evolva.ui.components.SectionCard
 import com.financetracker.evolva.ui.components.TypeTag
 import com.financetracker.evolva.ui.theme.AppThemeOption
@@ -80,26 +87,33 @@ import com.financetracker.evolva.ui.theme.palette
 import kotlinx.coroutines.launch
 import kotlin.system.exitProcess
 
-private enum class SettingsTab(val label: String) {
-    General("General"),
-    Data("Data"),
-    Backup("Backup"),
-    Security("Security"),
-    About("About")
+private enum class SettingsTab(val labelRes: Int) {
+    General(R.string.settings_tab_general),
+    Data(R.string.settings_tab_data),
+    Backup(R.string.settings_tab_backup),
+    Security(R.string.settings_tab_security),
+    About(R.string.settings_tab_about)
 }
 
 @Composable
 fun SettingsScreen(viewModel: MainViewModel) {
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = SettingsTab.entries
+    val activeProfile by viewModel.activeProfile.collectAsState()
 
     Column(modifier = Modifier.fillMaxSize()) {
         Text(
-            "Settings",
+            stringResource(R.string.settings_title),
             fontSize = 20.sp,
             fontWeight = FontWeight.SemiBold,
             color = FinanceColors.Text,
-            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp)
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 2.dp)
+        )
+        Text(
+            stringResource(R.string.active_profile_label, activeProfile.displayName),
+            fontSize = 13.sp,
+            color = FinanceColors.TextSoft,
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp)
         )
         ScrollableTabRow(
             selectedTabIndex = selectedTab,
@@ -111,7 +125,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
                 Tab(
                     selected = selectedTab == index,
                     onClick = { selectedTab = index },
-                    text = { Text(tab.label) }
+                    text = { Text(stringResource(tab.labelRes)) }
                 )
             }
         }
@@ -131,9 +145,11 @@ fun SettingsScreen(viewModel: MainViewModel) {
 private fun GeneralSettingsTab(viewModel: MainViewModel) {
     val context = LocalContext.current
     val currency by viewModel.currency.collectAsState()
+    val language by viewModel.language.collectAsState()
     val filterAutoCloseSeconds by viewModel.filterAutoCloseSeconds.collectAsState()
     val appTheme by viewModel.appTheme.collectAsState()
     val budgetAlertsEnabled by viewModel.budgetAlertsEnabled.collectAsState()
+    val exchangeRates by viewModel.exchangeRates.collectAsState()
     val autoCloseOptions = listOf(0, 5, 7, 10, 15, 30)
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
@@ -158,22 +174,60 @@ private fun GeneralSettingsTab(viewModel: MainViewModel) {
             )
         }
         item {
-            SectionCard(title = "Currency") {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    AppCurrency.entries.forEach { c ->
+            SectionCard(title = stringResource(R.string.section_language)) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    AppLanguage.entries.forEach { lang ->
                         FilterChip(
-                            selected = currency == c,
-                            onClick = { viewModel.setCurrency(c) },
-                            label = { Text("${c.symbol} ${c.code}") }
+                            selected = language == lang,
+                            onClick = { viewModel.setLanguage(lang) },
+                            label = {
+                                Text(
+                                    text = lang.nativeLabel,
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
+                            }
                         )
                     }
                 }
             }
         }
         item {
-            SectionCard(title = "Budget alerts") {
+            SectionCard(title = stringResource(R.string.section_currency)) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    AppCurrency.entries.forEach { c ->
+                        FilterChip(
+                            selected = currency == c,
+                            onClick = { viewModel.setCurrency(c) },
+                            label = {
+                                Text(
+                                    text = "${c.symbol} ${c.code}",
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
+                            }
+                        )
+                    }
+                }
+            }
+        }
+        item {
+            ExchangeRatesSection(
+                homeCurrency = currency,
+                exchangeRates = exchangeRates,
+                onSave = viewModel::setExchangeRate
+            )
+        }
+        item {
+            SectionCard(title = stringResource(R.string.section_budget_alerts)) {
                 Text(
-                    "Get a notification when a category reaches 80% of its monthly limit or goes over.",
+                    stringResource(R.string.budget_alerts_help),
                     fontSize = 13.sp,
                     color = FinanceColors.TextSoft
                 )
@@ -183,7 +237,11 @@ private fun GeneralSettingsTab(viewModel: MainViewModel) {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Near / over budget", fontSize = 14.sp, color = FinanceColors.Text)
+                    Text(
+                        stringResource(R.string.budget_alerts_toggle),
+                        fontSize = 14.sp,
+                        color = FinanceColors.Text
+                    )
                     Switch(
                         checked = budgetAlertsEnabled,
                         onCheckedChange = { enabled ->
@@ -206,9 +264,9 @@ private fun GeneralSettingsTab(viewModel: MainViewModel) {
             }
         }
         item {
-            SectionCard(title = "Date filter auto-hide") {
+            SectionCard(title = stringResource(R.string.section_date_filter_autohide)) {
                 Text(
-                    "Collapse the date filter chips after idle time. Set to Off to keep them open.",
+                    stringResource(R.string.date_filter_autohide_help),
                     fontSize = 13.sp,
                     color = FinanceColors.TextSoft
                 )
@@ -223,7 +281,11 @@ private fun GeneralSettingsTab(viewModel: MainViewModel) {
                             onClick = { viewModel.setFilterAutoCloseSeconds(seconds) },
                             label = {
                                 Text(
-                                    text = if (seconds == 0) "Off" else "${seconds}s",
+                                    text = if (seconds == 0) {
+                                        stringResource(R.string.filter_off)
+                                    } else {
+                                        "${seconds}s"
+                                    },
                                     maxLines = 1,
                                     softWrap = false
                                 )
@@ -232,6 +294,66 @@ private fun GeneralSettingsTab(viewModel: MainViewModel) {
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ExchangeRatesSection(
+    homeCurrency: AppCurrency,
+    exchangeRates: Map<String, Double>,
+    onSave: (String, Double) -> Unit
+) {
+    var values by remember(homeCurrency, exchangeRates) {
+        mutableStateOf(
+            AppCurrency.entries
+                .filter { it != homeCurrency }
+                .associate { currency ->
+                    currency.code to (exchangeRates[currency.code]?.toString() ?: "")
+                }
+        )
+    }
+    SectionCard(title = stringResource(R.string.section_exchange_rates)) {
+        Text(
+            stringResource(R.string.exchange_rates_help),
+            fontSize = 12.sp,
+            color = FinanceColors.TextSoft
+        )
+        Spacer(Modifier.height(8.dp))
+        AppCurrency.entries.filter { it != homeCurrency }.forEach { foreign ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedTextField(
+                    value = values[foreign.code].orEmpty(),
+                    onValueChange = { input ->
+                        values = values + (foreign.code to input.filter { it.isDigit() || it == '.' })
+                    },
+                    label = {
+                        Text(
+                            stringResource(
+                                R.string.rate_one_in_home,
+                                foreign.code,
+                                homeCurrency.code
+                            )
+                        )
+                    },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true,
+                    modifier = Modifier.weight(1f)
+                )
+                Button(
+                    onClick = {
+                        values[foreign.code]?.toDoubleOrNull()?.takeIf { it > 0 }?.let {
+                            onSave(foreign.code, it)
+                        }
+                    },
+                    enabled = values[foreign.code]?.toDoubleOrNull()?.let { it > 0 } == true
+                ) { Text(stringResource(R.string.action_save)) }
+            }
+            Spacer(Modifier.height(8.dp))
         }
     }
 }
@@ -253,13 +375,13 @@ private fun ThemePickerSection(
             .padding(16.dp)
     ) {
         Text(
-            "Themes",
+            stringResource(R.string.section_themes),
             fontSize = 16.sp,
             fontWeight = FontWeight.SemiBold,
             color = FinanceColors.OnHeader
         )
         Text(
-            "Pick a look that fits your money mood",
+            stringResource(R.string.themes_subtitle),
             fontSize = 12.sp,
             color = FinanceColors.OnHeader.copy(alpha = 0.85f),
             modifier = Modifier.padding(top = 2.dp, bottom = 14.dp)
@@ -347,6 +469,8 @@ private fun ColorDot(color: androidx.compose.ui.graphics.Color) {
 private fun DataSettingsTab(viewModel: MainViewModel) {
     val recurringRules by viewModel.recurringRules.collectAsState()
     val currency by viewModel.currency.collectAsState()
+    val accounts by viewModel.accounts.collectAsState()
+    val transactions by viewModel.transactions.collectAsState()
     val customExpenseCategories by viewModel.customExpenseCategories.collectAsState()
     var newExpenseType by remember { mutableStateOf("") }
     var editingRule by remember { mutableStateOf<RecurringRule?>(null) }
@@ -357,6 +481,15 @@ private fun DataSettingsTab(viewModel: MainViewModel) {
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        item {
+            AccountsSection(
+                accounts = accounts,
+                transactions = transactions,
+                currency = currency,
+                onSave = viewModel::upsertAccount,
+                onDelete = viewModel::deleteAccount
+            )
+        }
         item {
             SectionCard(title = "Custom expense types") {
                 Text(
@@ -417,25 +550,24 @@ private fun DataSettingsTab(viewModel: MainViewModel) {
 
         item {
             Text(
-                "Starter Templates",
+                stringResource(R.string.section_profiles),
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = FinanceColors.Text
             )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                stringResource(R.string.profiles_help),
+                fontSize = 12.sp,
+                color = FinanceColors.TextSoft
+            )
+        }
+        item {
+            PersonalProfileCard(viewModel)
         }
         TEMPLATES.forEach { template ->
             item(key = template.id) {
-                SectionCard(title = template.label) {
-                    Text(
-                        template.description,
-                        fontSize = 12.sp,
-                        color = FinanceColors.TextSoft
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-                    OutlinedButton(onClick = { viewModel.loadTemplate(template) }) {
-                        Text("Load template")
-                    }
-                }
+                TemplateProfileCard(viewModel = viewModel, template = template)
             }
         }
 
@@ -474,6 +606,107 @@ private fun DataSettingsTab(viewModel: MainViewModel) {
             onDelete = {
                 viewModel.deleteRecurringRule(rule.id)
                 editingRule = null
+            }
+        )
+    }
+}
+
+@Composable
+private fun PersonalProfileCard(viewModel: MainViewModel) {
+    val activeProfile by viewModel.activeProfile.collectAsState()
+    val isActive = activeProfile.id == ProfileIds.PERSONAL
+    SectionCard(title = stringResource(R.string.profile_my_tracker)) {
+        Text(
+            stringResource(R.string.profile_personal_subtitle),
+            fontSize = 12.sp,
+            color = FinanceColors.TextSoft
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (isActive) {
+                Text(
+                    stringResource(R.string.profile_active),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = FinanceColors.Savings
+                )
+            } else {
+                Button(onClick = { viewModel.switchProfile(ProfileIds.PERSONAL) }) {
+                    Text(stringResource(R.string.profile_switch))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TemplateProfileCard(
+    viewModel: MainViewModel,
+    template: AppTemplate
+) {
+    val profiles by viewModel.profiles.collectAsState()
+    val activeProfile by viewModel.activeProfile.collectAsState()
+    val instance = profiles.find {
+        it.kind == ProfileKind.TEMPLATE && it.templateId == template.id
+    }
+    var pendingDelete by remember { mutableStateOf<TrackerProfile?>(null) }
+
+    SectionCard(title = template.label) {
+        Text(template.description, fontSize = 12.sp, color = FinanceColors.TextSoft)
+        Spacer(modifier = Modifier.height(10.dp))
+        if (instance == null) {
+            Button(onClick = { viewModel.setupTemplateProfile(template) }) {
+                Text(stringResource(R.string.profile_setup))
+            }
+        } else {
+            val isActive = activeProfile.id == instance.id
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (isActive) {
+                    Text(
+                        stringResource(R.string.profile_active),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = FinanceColors.Savings
+                    )
+                } else {
+                    Button(onClick = { viewModel.switchProfile(instance.id) }) {
+                        Text(stringResource(R.string.profile_switch))
+                    }
+                }
+                OutlinedButton(
+                    onClick = { pendingDelete = instance },
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = FinanceColors.Expense)
+                ) {
+                    Text(stringResource(R.string.profile_delete))
+                }
+            }
+        }
+    }
+
+    pendingDelete?.let { profile ->
+        AlertDialog(
+            onDismissRequest = { pendingDelete = null },
+            title = { Text(stringResource(R.string.profile_delete_confirm_title)) },
+            text = {
+                Text(stringResource(R.string.profile_delete_confirm_body, profile.displayName))
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteTemplateProfile(profile.id)
+                        pendingDelete = null
+                    }
+                ) {
+                    Text(stringResource(R.string.profile_delete), color = FinanceColors.Expense)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDelete = null }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
             }
         )
     }
@@ -528,6 +761,11 @@ private fun BackupSettingsTab(viewModel: MainViewModel) {
             SectionCard(title = "Backup, Restore & Share") {
                 Text(
                     "Export a backup file to keep a copy of your data or send it to a family member. Import a backup to restore it, or merge someone else's data into yours.",
+                    fontSize = 12.5.sp, color = FinanceColors.TextSoft
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    stringResource(R.string.backup_help_profile),
                     fontSize = 12.5.sp, color = FinanceColors.TextSoft
                 )
                 Spacer(Modifier.height(12.dp))
@@ -622,8 +860,8 @@ private fun SecuritySettingsTab(viewModel: MainViewModel) {
         item {
             SectionCard(title = "Danger Zone") {
                 Text(
-                    "Remove every transaction and start fresh. Budgets and recurring rules are kept. " +
-                        "This requires your device screen lock and your app password.",
+                    stringResource(R.string.danger_clear_help) +
+                        " This requires your device screen lock and your app password.",
                     fontSize = 12.5.sp, color = FinanceColors.TextSoft
                 )
                 Spacer(Modifier.height(10.dp))

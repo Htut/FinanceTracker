@@ -4,6 +4,7 @@ import com.financetracker.evolva.data.model.Budget
 import com.financetracker.evolva.data.model.RecurringRule
 import com.financetracker.evolva.data.model.Transaction
 import com.financetracker.evolva.data.model.TransactionType
+import com.financetracker.evolva.data.model.homeAmount
 import java.time.YearMonth
 import kotlin.math.abs
 
@@ -39,7 +40,7 @@ object InsightsCalculator {
         val byCategory = transactions
             .filter { it.type == TransactionType.EXPENSE }
             .groupBy { it.category }
-            .mapValues { (_, txs) -> txs.sumOf { it.amount } }
+            .mapValues { (_, txs) -> txs.sumOf { it.homeAmount() } }
         byCategory.entries.maxByOrNull { it.value }?.let { (cat, amount) ->
             items.add("Your biggest expense category is $cat at ${fmt(amount)}.")
         }

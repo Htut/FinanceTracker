@@ -2,6 +2,8 @@ package com.financetracker.evolva.data.db
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.financetracker.evolva.data.model.Account
+import com.financetracker.evolva.data.model.AccountKind
 import com.financetracker.evolva.data.model.Budget
 import com.financetracker.evolva.data.model.RecurringRule
 import com.financetracker.evolva.data.model.Transaction
@@ -10,6 +12,15 @@ import com.financetracker.evolva.data.model.TransferDirection
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.YearMonth
+
+@Entity(tableName = "accounts")
+data class AccountEntity(
+    @PrimaryKey val id: String,
+    val name: String,
+    val kind: String,
+    val openingBalance: Double,
+    val archived: Boolean
+)
 
 @Entity(tableName = "transactions")
 data class TransactionEntity(
@@ -21,7 +32,11 @@ data class TransactionEntity(
     val time: String? = null, // optional "HH:mm:ss" / "HH:mm"
     val note: String?,
     val direction: String?,
-    val recurringId: String?
+    val recurringId: String?,
+    val accountId: String? = null,
+    val receiptUri: String? = null,
+    val currencyCode: String? = null,
+    val exchangeRate: Double? = null
 )
 
 @Entity(tableName = "budgets")
@@ -46,6 +61,22 @@ data class RecurringRuleEntity(
 
 // ---- Mappers between Room entities and plain domain models ----
 
+fun AccountEntity.toDomain() = Account(
+    id = id,
+    name = name,
+    kind = runCatching { AccountKind.valueOf(kind) }.getOrDefault(AccountKind.CASH),
+    openingBalance = openingBalance,
+    archived = archived
+)
+
+fun Account.toEntity() = AccountEntity(
+    id = id,
+    name = name,
+    kind = kind.name,
+    openingBalance = openingBalance,
+    archived = archived
+)
+
 fun TransactionEntity.toDomain() = Transaction(
     id = id,
     type = TransactionType.valueOf(type),
@@ -55,7 +86,11 @@ fun TransactionEntity.toDomain() = Transaction(
     time = time?.let { LocalTime.parse(it) },
     note = note,
     direction = direction?.let { TransferDirection.valueOf(it) },
-    recurringId = recurringId
+    recurringId = recurringId,
+    accountId = accountId,
+    receiptUri = receiptUri,
+    currencyCode = currencyCode,
+    exchangeRate = exchangeRate
 )
 
 fun Transaction.toEntity() = TransactionEntity(
@@ -67,7 +102,11 @@ fun Transaction.toEntity() = TransactionEntity(
     time = time?.toString(),
     note = note,
     direction = direction?.name,
-    recurringId = recurringId
+    recurringId = recurringId,
+    accountId = accountId,
+    receiptUri = receiptUri,
+    currencyCode = currencyCode,
+    exchangeRate = exchangeRate
 )
 
 fun BudgetEntity.toDomain() = Budget(category = category, limit = limitAmount)

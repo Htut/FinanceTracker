@@ -26,9 +26,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -36,6 +40,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -44,9 +49,12 @@ import com.financetracker.evolva.data.model.Categories
 import com.financetracker.evolva.data.model.Transaction
 import com.financetracker.evolva.data.model.TransactionQuery
 import com.financetracker.evolva.data.model.TransactionType
+import com.financetracker.evolva.data.model.AppCurrency
 import com.financetracker.evolva.data.model.filteredByQuery
 import com.financetracker.evolva.data.model.formatAmount
+import com.financetracker.evolva.data.model.homeAmount
 import com.financetracker.evolva.ui.MainViewModel
+import com.financetracker.evolva.ui.UndoAction
 import com.financetracker.evolva.ui.components.DateFilterBar
 import com.financetracker.evolva.ui.components.TransactionRow
 import com.financetracker.evolva.ui.theme.FinanceColors
@@ -54,12 +62,28 @@ import java.time.LocalTime
 
 @Composable
 fun TransactionsScreen(viewModel: MainViewModel) {
+    val context = LocalContext.current
     val transactions by viewModel.filteredTransactions.collectAsState()
     val allCount by viewModel.transactions.collectAsState()
     val currency by viewModel.currency.collectAsState()
     val dateFilter by viewModel.dateFilter.collectAsState()
     val filterAutoCloseSeconds by viewModel.filterAutoCloseSeconds.collectAsState()
     val customExpenseCategories by viewModel.customExpenseCategories.collectAsState()
+    val accounts by viewModel.accounts.collectAsState()
+    val exchangeRates by viewModel.exchangeRates.collectAsState()
+    val undoAction by viewModel.undoAction.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(undoAction) {
+        if (undoAction is UndoAction.DeleteTransaction) {
+            val result = snackbarHostState.showSnackbar(
+                message = "Transaction deleted",
+                actionLabel = "Undo"
+            )
+            if (result == SnackbarResult.ActionPerformed) viewModel.undoLastAction()
+            else viewModel.dismissUndo()
+        }
+    }
 
     var sheetTransaction by remember { mutableStateOf<Transaction?>(null) }
     var showSheet by remember { mutableStateOf(false) }
@@ -107,6 +131,7 @@ fun TransactionsScreen(viewModel: MainViewModel) {
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             FloatingActionButton(onClick = {
                 sheetTransaction = null
@@ -249,7 +274,7 @@ fun TransactionsScreen(viewModel: MainViewModel) {
                 ) {
                     Text(
                         if (transactions.isEmpty()) {
-                            "No transactions in this date filter. Tap + to add one, or load a starter template from Settings."
+                            "No transactions in this date filter. Tap + to add one, or set up a sample profile in Settings → Data."
                         } else {
                             "No transactions match your search/filters."
                         },
@@ -264,15 +289,24 @@ fun TransactionsScreen(viewModel: MainViewModel) {
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                 ) {
                     items(sorted, key = { it.id }) { tx ->
+                        val txCurrency = AppCurrency.fromCode(tx.currencyCode ?: currency.code)
+                        val amountLabel = buildString {
+                            append(formatAmount(tx.amount, txCurrency))
+                            if (txCurrency != currency) {
+                                append(" (")
+                                append(formatAmount(tx.homeAmount(), currency))
+                                append(")")
+                            }
+                        }
                         TransactionRow(
                             transaction = tx,
-                            formattedAmount = formatAmount(tx.amount, currency),
+                            formattedAmount = amountLabel,
                             onClick = {
                                 sheetTransaction = tx
                                 isNew = false
                                 showSheet = true
                             },
-                            onDelete = { viewModel.deleteTransaction(tx.id) }
+                            onDelete = { viewModel.deleteTransaction(tx.id, context) }
                         )
                         HorizontalDivider(color = FinanceColors.Border)
                     }
@@ -285,6 +319,9 @@ fun TransactionsScreen(viewModel: MainViewModel) {
     if (showSheet) {
         AddEditTransactionSheet(
             existing = sheetTransaction,
+            accounts = accounts,
+            homeCurrency = currency,
+            exchangeRates = exchangeRates,
             customExpenseCategories = customExpenseCategories,
             onAddExpenseCategory = viewModel::addCustomExpenseCategory,
             onDismiss = { showSheet = false },
