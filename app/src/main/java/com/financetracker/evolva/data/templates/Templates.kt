@@ -35,6 +35,18 @@ fun monthsBack(n: Int): List<YearMonth> {
 fun fixedMonths(year: Int, startMonth1: Int, endMonth1: Int): List<YearMonth> =
     (startMonth1..endMonth1).map { YearMonth.of(year, it) }
 
+/** Inclusive month span that may cross years, e.g. Jan 2025–Jul 2026. */
+fun monthRange(start: YearMonth, end: YearMonth): List<YearMonth> {
+    require(!end.isBefore(start)) { "end must be on or after start" }
+    val months = mutableListOf<YearMonth>()
+    var current = start
+    while (!current.isAfter(end)) {
+        months.add(current)
+        current = current.plusMonths(1)
+    }
+    return months
+}
+
 fun buildProfileTransactions(profile: SpendingProfile, months: List<YearMonth>): List<Transaction> {
     val today = LocalDate.now()
     val rows = mutableListOf<Transaction>()
@@ -208,6 +220,17 @@ val BUDGET_EXAMPLE_LIMITS: Map<String, Double> = mapOf(
     "Shopping" to 220.0
 )
 
+val PROFESSIONAL_LONG_LIMITS: Map<String, Double> = mapOf(
+    "Housing" to 1250.0,
+    "Utilities" to 250.0,
+    "Insurance" to 100.0,
+    "Food" to 550.0,
+    "Transport" to 220.0,
+    "Entertainment" to 160.0,
+    "Shopping" to 200.0,
+    "Health" to 120.0
+)
+
 data class AppTemplate(
     val id: String,
     val label: String,
@@ -237,5 +260,17 @@ val TEMPLATES: List<AppTemplate> = listOf(
         description = "Regular income and everyday expenses dated Jan–Jul 2026, with example category budget limits included.",
         budgets = BUDGET_EXAMPLE_LIMITS,
         generate = { buildProfileTransactions(BUDGET_EXAMPLE_PROFILE, fixedMonths(2026, 1, 7)) }
+    ),
+    AppTemplate(
+        id = "professional_2025_2026",
+        label = "Professional (Jan 2025–Jul 2026)",
+        description = "19 months of salaried professional income, bills, and expenses from January 2025 through July 2026, with starter budget limits.",
+        budgets = PROFESSIONAL_LONG_LIMITS,
+        generate = {
+            buildProfileTransactions(
+                STAFF_PROFILE,
+                monthRange(YearMonth.of(2025, 1), YearMonth.of(2026, 7))
+            )
+        }
     )
 )

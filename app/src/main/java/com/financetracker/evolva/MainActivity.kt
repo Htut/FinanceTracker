@@ -4,6 +4,9 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.financetracker.evolva.ui.MainViewModel
 import com.financetracker.evolva.ui.MainViewModelFactory
 import com.financetracker.evolva.ui.navigation.AppNavGraph
@@ -17,9 +20,11 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         setContent {
-            FinanceTrackerTheme {
+            val theme by viewModel.appTheme.collectAsState()
+            FinanceTrackerTheme(theme = theme) {
                 AppNavGraph(viewModel = viewModel)
             }
         }

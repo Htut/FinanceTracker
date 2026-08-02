@@ -27,13 +27,15 @@ object BackupManager {
         currency: AppCurrency,
         transactions: List<Transaction>,
         budgets: List<Budget>,
-        recurring: List<RecurringRule>
+        recurring: List<RecurringRule>,
+        customExpenseCategories: List<String> = emptyList()
     ): BackupPayload = BackupPayload(
         exportedAt = Instant.now().toString(),
         currency = currency.code,
         transactions = transactions.map { it.toDto() },
         budgets = budgets.map { it.toDto() },
-        recurring = recurring.map { it.toDto() }
+        recurring = recurring.map { it.toDto() },
+        customExpenseCategories = customExpenseCategories
     )
 
     fun toJson(payload: BackupPayload): String = json.encodeToString(payload)

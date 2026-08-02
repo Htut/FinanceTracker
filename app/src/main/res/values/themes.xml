@@ -1,10 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Base app theme; actual colors/typography come from Compose (ui/theme/Theme.kt).
-         This XML theme mainly exists to set the window background before Compose
-         takes over, avoiding a white flash on launch. -->
     <style name="Theme.FinanceTracker" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:windowBackground">@android:color/white</item>
-        <item name="android:statusBarColor">#1A1A1A</item>
+        <item name="android:windowBackground">@color/splash_background</item>
+        <item name="android:statusBarColor">#0B2A4A</item>
         <item name="android:windowLightStatusBar">false</item>
+    </style>
+
+    <!-- Android 12+ system splash uses the app logo instead of the old bar-chart glyph. -->
+    <style name="Theme.FinanceTracker.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/app_logo_foreground</item>
+        <item name="postSplashScreenTheme">@style/Theme.FinanceTracker</item>
     </style>
 </resources>

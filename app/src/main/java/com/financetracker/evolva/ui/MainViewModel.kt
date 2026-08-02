@@ -4,22 +4,30 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
+import com.financetracker.evolva.data.AppConstants
 import com.financetracker.evolva.data.backup.BackupManager
 import com.financetracker.evolva.data.backup.toDomain
 import com.financetracker.evolva.data.model.AppCurrency
 import com.financetracker.evolva.data.model.Budget
+import com.financetracker.evolva.data.model.Categories
 import com.financetracker.evolva.data.model.DateFilter
 import com.financetracker.evolva.data.model.RecurringRule
 import com.financetracker.evolva.data.model.Transaction
+import com.financetracker.evolva.data.model.TransactionType
 import com.financetracker.evolva.data.model.filteredBy
+import com.financetracker.evolva.data.notify.BudgetAlertNotifier
 import com.financetracker.evolva.data.prefs.PasswordChangeResult
 import com.financetracker.evolva.data.prefs.SettingsDataStore
 import com.financetracker.evolva.data.repository.FinanceRepository
 import com.financetracker.evolva.data.templates.AppTemplate
+import com.financetracker.evolva.ui.theme.AppThemeOption
+import android.content.Context
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.YearMonth
@@ -53,6 +61,23 @@ class MainViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AppCurrency.MYR)
 
     val hasAppPassword: StateFlow<Boolean> = settingsDataStore.hasAppPassword
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    val filterAutoCloseSeconds: StateFlow<Int> = settingsDataStore.filterAutoCloseSeconds
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            AppConstants.DEFAULT_FILTER_AUTO_CLOSE_SECONDS
+        )
+
+    val appTheme: StateFlow<AppThemeOption> = settingsDataStore.appThemeId
+        .map { AppThemeOption.fromId(it) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AppThemeOption.CLASSIC)
+
+    val customExpenseCategories: StateFlow<List<String>> = settingsDataStore.customExpenseCategories
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val budgetAlertsEnabled: StateFlow<Boolean> = settingsDataStore.budgetAlertsEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     private val _dateFilter = MutableStateFlow<DateFilter>(DateFilter.All)
@@ -90,6 +115,42 @@ class MainViewModel(
 
     fun setCurrency(currency: AppCurrency) {
         viewModelScope.launch { settingsDataStore.setCurrency(currency) }
+    }
+
+    fun setFilterAutoCloseSeconds(seconds: Int) {
+        viewModelScope.launch { settingsDataStore.setFilterAutoCloseSeconds(seconds) }
+    }
+
+    fun setAppTheme(theme: AppThemeOption) {
+        viewModelScope.launch { settingsDataStore.setAppThemeId(theme.id) }
+    }
+
+    fun setBudgetAlertsEnabled(enabled: Boolean) {
+        viewModelScope.launch { settingsDataStore.setBudgetAlertsEnabled(enabled) }
+    }
+
+    /** Posts notifications for near/over budgets when the setting is on. */
+    fun refreshBudgetAlerts(context: Context) {
+        viewModelScope.launch {
+            if (!settingsDataStore.budgetAlertsEnabled.first()) return@launch
+            val alerts = BudgetAlertNotifier.collectAlerts(transactions.value, budgets.value)
+            BudgetAlertNotifier.notifyAlerts(context.applicationContext, alerts, currency.value)
+        }
+    }
+
+    fun addCustomExpenseCategory(name: String, onResult: ((Boolean) -> Unit)? = null) {
+        viewModelScope.launch {
+            val ok = settingsDataStore.addCustomExpenseCategory(name)
+            onResult?.invoke(ok)
+            if (!ok) {
+                _infoMessage.value =
+                    "Could not add expense type. Use a non-empty name that is not already listed."
+            }
+        }
+    }
+
+    fun removeCustomExpenseCategory(name: String) {
+        viewModelScope.launch { settingsDataStore.removeCustomExpenseCategory(name) }
     }
 
     suspend fun verifyAppPassword(password: String): Boolean =
@@ -150,6 +211,14 @@ class MainViewModel(
         viewModelScope.launch { repository.setBudget(category, limit) }
     }
 
+    fun deleteBudget(category: String) {
+        viewModelScope.launch { repository.deleteBudget(category) }
+    }
+
+    fun updateRecurringRule(rule: RecurringRule) {
+        viewModelScope.launch { repository.updateRecurringRule(rule) }
+    }
+
     fun loadTemplate(template: AppTemplate) {
         viewModelScope.launch {
             val rows = template.generate()
@@ -171,7 +240,13 @@ class MainViewModel(
     }
 
     fun exportBackupJson(): String = BackupManager.toJson(
-        BackupManager.buildPayload(currency.value, transactions.value, budgets.value, recurringRules.value)
+        BackupManager.buildPayload(
+            currency = currency.value,
+            transactions = transactions.value,
+            budgets = budgets.value,
+            recurring = recurringRules.value,
+            customExpenseCategories = customExpenseCategories.value
+        )
     )
 
     fun exportCsv(): String = BackupManager.toCsv(transactions.value, currency.value.code)
@@ -181,14 +256,30 @@ class MainViewModel(
         val importedTransactions = payload.transactions.map { it.toDomain() }
         val importedBudgets = payload.budgets.map { it.toDomain() }
         val importedRules = payload.recurring.map { it.toDomain() }
+        val categoriesFromData = importedTransactions
+            .asSequence()
+            .filter { it.type == TransactionType.EXPENSE }
+            .map { it.category }
+            .plus(importedBudgets.map { it.category })
+            .filterNot { Categories.isBuiltInExpense(it) }
+            .toList()
+        val importedCustomCategories = Categories.normalizeCustom(
+            payload.customExpenseCategories + categoriesFromData
+        ).filterNot { Categories.isBuiltInExpense(it) }
+
         viewModelScope.launch {
             if (replace) {
                 repository.replaceAll(importedTransactions, importedBudgets, importedRules)
                 settingsDataStore.setCurrency(AppCurrency.fromCode(payload.currency))
+                settingsDataStore.setCustomExpenseCategories(importedCustomCategories)
                 _infoMessage.value =
                     "Backup imported and replaced existing data.\n\n${importedTransactions.size} transactions restored."
             } else {
                 repository.mergeIn(importedTransactions, importedBudgets, importedRules)
+                val merged = Categories.normalizeCustom(
+                    customExpenseCategories.value + importedCustomCategories
+                )
+                settingsDataStore.setCustomExpenseCategories(merged)
                 _infoMessage.value =
                     "Backup imported and merged.\n\n${importedTransactions.size} transactions added."
             }

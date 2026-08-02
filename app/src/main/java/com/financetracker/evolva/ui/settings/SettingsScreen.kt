@@ -3,7 +3,14 @@ package com.financetracker.evolva.ui.settings
 import android.app.Activity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -12,7 +19,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -36,12 +49,18 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.financetracker.evolva.R
 import com.financetracker.evolva.data.AppConstants
 import com.financetracker.evolva.data.backup.BackupManager
 import com.financetracker.evolva.data.model.AppCurrency
@@ -56,7 +75,9 @@ import com.financetracker.evolva.ui.ImportResult
 import com.financetracker.evolva.ui.MainViewModel
 import com.financetracker.evolva.ui.components.SectionCard
 import com.financetracker.evolva.ui.components.TypeTag
+import com.financetracker.evolva.ui.theme.AppThemeOption
 import com.financetracker.evolva.ui.theme.FinanceColors
+import com.financetracker.evolva.ui.theme.palette
 import kotlinx.coroutines.launch
 import kotlin.system.exitProcess
 
@@ -106,14 +127,37 @@ fun SettingsScreen(viewModel: MainViewModel) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun GeneralSettingsTab(viewModel: MainViewModel) {
+    val context = LocalContext.current
     val currency by viewModel.currency.collectAsState()
+    val filterAutoCloseSeconds by viewModel.filterAutoCloseSeconds.collectAsState()
+    val appTheme by viewModel.appTheme.collectAsState()
+    val budgetAlertsEnabled by viewModel.budgetAlertsEnabled.collectAsState()
+    val autoCloseOptions = listOf(0, 5, 7, 10, 15, 30)
+
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        viewModel.setBudgetAlertsEnabled(granted)
+        if (granted) {
+            com.financetracker.evolva.data.notify.BudgetAlertNotifier.ensureChannel(context)
+            viewModel.refreshBudgetAlerts(context)
+        }
+    }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        item {
+            ThemePickerSection(
+                selected = appTheme,
+                onSelect = viewModel::setAppTheme
+            )
+        }
         item {
             SectionCard(title = "Currency") {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -127,13 +171,186 @@ private fun GeneralSettingsTab(viewModel: MainViewModel) {
                 }
             }
         }
+        item {
+            SectionCard(title = "Budget alerts") {
+                Text(
+                    "Get a notification when a category reaches 80% of its monthly limit or goes over.",
+                    fontSize = 13.sp,
+                    color = FinanceColors.TextSoft
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Near / over budget", fontSize = 14.sp, color = FinanceColors.Text)
+                    Switch(
+                        checked = budgetAlertsEnabled,
+                        onCheckedChange = { enabled ->
+                            if (enabled) {
+                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                                    notificationPermissionLauncher.launch(
+                                        android.Manifest.permission.POST_NOTIFICATIONS
+                                    )
+                                } else {
+                                    viewModel.setBudgetAlertsEnabled(true)
+                                    com.financetracker.evolva.data.notify.BudgetAlertNotifier.ensureChannel(context)
+                                    viewModel.refreshBudgetAlerts(context)
+                                }
+                            } else {
+                                viewModel.setBudgetAlertsEnabled(false)
+                            }
+                        }
+                    )
+                }
+            }
+        }
+        item {
+            SectionCard(title = "Date filter auto-hide") {
+                Text(
+                    "Collapse the date filter chips after idle time. Set to Off to keep them open.",
+                    fontSize = 13.sp,
+                    color = FinanceColors.TextSoft
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    autoCloseOptions.forEach { seconds ->
+                        FilterChip(
+                            selected = filterAutoCloseSeconds == seconds,
+                            onClick = { viewModel.setFilterAutoCloseSeconds(seconds) },
+                            label = {
+                                Text(
+                                    text = if (seconds == 0) "Off" else "${seconds}s",
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
+                            }
+                        )
+                    }
+                }
+            }
+        }
     }
+}
+
+@Composable
+private fun ThemePickerSection(
+    selected: AppThemeOption,
+    onSelect: (AppThemeOption) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(
+                Brush.linearGradient(
+                    listOf(FinanceColors.Header, FinanceColors.Accent.copy(alpha = 0.85f))
+                )
+            )
+            .padding(16.dp)
+    ) {
+        Text(
+            "Themes",
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = FinanceColors.OnHeader
+        )
+        Text(
+            "Pick a look that fits your money mood",
+            fontSize = 12.sp,
+            color = FinanceColors.OnHeader.copy(alpha = 0.85f),
+            modifier = Modifier.padding(top = 2.dp, bottom = 14.dp)
+        )
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            items(AppThemeOption.entries) { theme ->
+                ThemeSwatchCard(
+                    theme = theme,
+                    selected = theme == selected,
+                    onClick = { onSelect(theme) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ThemeSwatchCard(
+    theme: AppThemeOption,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    val palette = theme.palette()
+    Column(
+        modifier = Modifier
+            .width(118.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(palette.surface)
+            .border(
+                width = if (selected) 2.dp else 1.dp,
+                color = if (selected) palette.accent else palette.border,
+                shape = RoundedCornerShape(14.dp)
+            )
+            .clickable(onClick = onClick)
+            .padding(10.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(44.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(
+                    Brush.verticalGradient(listOf(palette.header, palette.accent))
+                )
+        ) {
+            Row(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                ColorDot(color = palette.income)
+                ColorDot(color = palette.expense)
+                ColorDot(color = palette.savings)
+            }
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            theme.label,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = palette.text
+        )
+        Text(
+            theme.subtitle,
+            fontSize = 11.sp,
+            color = palette.textSoft,
+            maxLines = 2
+        )
+    }
+}
+
+
+@Composable
+private fun ColorDot(color: androidx.compose.ui.graphics.Color) {
+    Box(
+        modifier = Modifier
+            .size(10.dp)
+            .clip(CircleShape)
+            .background(color)
+    )
 }
 
 @Composable
 private fun DataSettingsTab(viewModel: MainViewModel) {
     val recurringRules by viewModel.recurringRules.collectAsState()
     val currency by viewModel.currency.collectAsState()
+    val customExpenseCategories by viewModel.customExpenseCategories.collectAsState()
+    var newExpenseType by remember { mutableStateOf("") }
+    var editingRule by remember { mutableStateOf<RecurringRule?>(null) }
     fun fmt(v: Double) = formatAmount(v, currency)
 
     LazyColumn(
@@ -142,18 +359,83 @@ private fun DataSettingsTab(viewModel: MainViewModel) {
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            SectionCard(title = "Starter Templates") {
-                TEMPLATES.forEachIndexed { index, template ->
-                    Column(Modifier.padding(vertical = 8.dp)) {
-                        Text(template.label, fontSize = 13.5.sp, fontWeight = FontWeight.Medium, color = FinanceColors.Text)
-                        Spacer(Modifier.height(3.dp))
-                        Text(template.description, fontSize = 12.sp, color = FinanceColors.TextSoft)
-                        Spacer(Modifier.height(8.dp))
-                        OutlinedButton(onClick = { viewModel.loadTemplate(template) }) {
-                            Text("Load ${template.label}")
+            SectionCard(title = "Custom expense types") {
+                Text(
+                    "Add your own expense categories. They appear in Transactions and Budgets, and are included in backup/restore.",
+                    fontSize = 12.sp,
+                    color = FinanceColors.TextSoft
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedTextField(
+                        value = newExpenseType,
+                        onValueChange = { newExpenseType = it },
+                        label = { Text("New type") },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Button(
+                        onClick = {
+                            val name = newExpenseType.trim()
+                            if (name.isNotEmpty()) {
+                                viewModel.addCustomExpenseCategory(name) { ok ->
+                                    if (ok) newExpenseType = ""
+                                }
+                            }
                         }
+                    ) { Text("Add") }
+                }
+                if (customExpenseCategories.isEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "No custom types yet. Built-in types (Food, Transport, …) stay available.",
+                        fontSize = 12.sp,
+                        color = FinanceColors.TextSoft
+                    )
+                } else {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    customExpenseCategories.forEach { name ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(name, fontSize = 13.5.sp, color = FinanceColors.Text)
+                            TextButton(onClick = { viewModel.removeCustomExpenseCategory(name) }) {
+                                Text("Remove", color = FinanceColors.Expense)
+                            }
+                        }
+                        HorizontalDivider(color = FinanceColors.Border)
                     }
-                    if (index != TEMPLATES.lastIndex) HorizontalDivider(color = FinanceColors.Border)
+                }
+            }
+        }
+
+        item {
+            Text(
+                "Starter Templates",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = FinanceColors.Text
+            )
+        }
+        TEMPLATES.forEach { template ->
+            item(key = template.id) {
+                SectionCard(title = template.label) {
+                    Text(
+                        template.description,
+                        fontSize = 12.sp,
+                        color = FinanceColors.TextSoft
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    OutlinedButton(onClick = { viewModel.loadTemplate(template) }) {
+                        Text("Load template")
+                    }
                 }
             }
         }
@@ -170,6 +452,7 @@ private fun DataSettingsTab(viewModel: MainViewModel) {
                         RecurringRuleRow(
                             rule = rule,
                             formattedAmount = fmt(rule.amount),
+                            onEdit = { editingRule = rule },
                             onToggleActive = { viewModel.toggleRecurringActive(rule) },
                             onDelete = { viewModel.deleteRecurringRule(rule.id) }
                         )
@@ -178,6 +461,22 @@ private fun DataSettingsTab(viewModel: MainViewModel) {
                 }
             }
         }
+    }
+
+    editingRule?.let { rule ->
+        EditRecurringRuleSheet(
+            rule = rule,
+            customExpenseCategories = customExpenseCategories,
+            onDismiss = { editingRule = null },
+            onSave = {
+                viewModel.updateRecurringRule(it)
+                editingRule = null
+            },
+            onDelete = {
+                viewModel.deleteRecurringRule(rule.id)
+                editingRule = null
+            }
+        )
     }
 }
 
@@ -417,12 +716,38 @@ private fun AboutSettingsTab() {
     ) {
         item {
             SectionCard(title = "About") {
-                Text(AppConstants.APP_NAME, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = FinanceColors.Text)
-                Spacer(Modifier.height(4.dp))
-                Text("Version ${AppConstants.APP_VERSION}", fontSize = 13.sp, color = FinanceColors.TextSoft)
-                Spacer(Modifier.height(4.dp))
-                Text(AppConstants.DEVELOPER_NAME, fontSize = 13.sp, color = FinanceColors.TextSoft)
-                Spacer(Modifier.height(12.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Image(
+                        painter = painterResource(R.drawable.app_logo),
+                        contentDescription = AppConstants.APP_NAME,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(72.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                    )
+                    Spacer(modifier = Modifier.width(14.dp))
+                    Column {
+                        Text(
+                            AppConstants.APP_NAME,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = FinanceColors.Text
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            "Version ${AppConstants.APP_VERSION}",
+                            fontSize = 13.sp,
+                            color = FinanceColors.TextSoft
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            AppConstants.DEVELOPER_NAME,
+                            fontSize = 13.sp,
+                            color = FinanceColors.TextSoft
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
                 OutlinedButton(onClick = { showAbout = true }) {
                     Text("About Box")
                 }
@@ -476,11 +801,32 @@ private fun AboutBoxDialog(onDismiss: () -> Unit) {
         onDismissRequest = onDismiss,
         title = { Text(AppConstants.APP_NAME) },
         text = {
-            Column {
-                Text("Version ${AppConstants.APP_VERSION}", fontSize = 14.sp, color = FinanceColors.Text)
-                Spacer(Modifier.height(8.dp))
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Image(
+                    painter = painterResource(R.drawable.app_logo),
+                    contentDescription = AppConstants.APP_NAME,
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier
+                        .size(120.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                )
+                Spacer(modifier = Modifier.height(14.dp))
+                Text(
+                    "Version ${AppConstants.APP_VERSION}",
+                    fontSize = 14.sp,
+                    color = FinanceColors.Text
+                )
+                Spacer(modifier = Modifier.height(8.dp))
                 Text("Developer", fontSize = 12.sp, color = FinanceColors.TextSoft)
-                Text(AppConstants.DEVELOPER_NAME, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = FinanceColors.Text)
+                Text(
+                    AppConstants.DEVELOPER_NAME,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = FinanceColors.Text
+                )
             }
         },
         confirmButton = {
@@ -618,6 +964,7 @@ private fun DangerZoneConfirmDialog(
 private fun RecurringRuleRow(
     rule: RecurringRule,
     formattedAmount: String,
+    onEdit: () -> Unit,
     onToggleActive: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -625,9 +972,9 @@ private fun RecurringRuleRow(
         modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(Modifier.weight(1f)) {
+        Column(modifier = Modifier.weight(1f)) {
             TypeTag(rule.type)
-            Spacer(Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(4.dp))
             val label = if (rule.type == TransactionType.TRANSFER) {
                 val arrow = if (rule.direction == TransferDirection.OUT) "↗" else "↙"
                 "$arrow ${rule.category}"
@@ -638,9 +985,13 @@ private fun RecurringRuleRow(
                 Text("Paused", fontSize = 11.5.sp, color = FinanceColors.Warn)
             }
         }
+        TextButton(onClick = onEdit) {
+            Text("Edit")
+        }
         Switch(checked = rule.active, onCheckedChange = { onToggleActive() })
         TextButton(onClick = onDelete) {
             Text("Delete", color = FinanceColors.Expense)
         }
     }
 }
+

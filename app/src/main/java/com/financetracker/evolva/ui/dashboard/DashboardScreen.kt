@@ -1,18 +1,30 @@
 package com.financetracker.evolva.ui.dashboard
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -21,18 +33,27 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.financetracker.evolva.data.calc.FinanceCalculator
 import com.financetracker.evolva.data.calc.InsightsCalculator
+import com.financetracker.evolva.data.export.DetailExport
+import com.financetracker.evolva.data.export.DetailShareFormat
+import com.financetracker.evolva.data.model.AppCurrency
 import com.financetracker.evolva.data.model.Transaction
 import com.financetracker.evolva.data.model.TransactionType
 import com.financetracker.evolva.data.model.TransferDirection
 import com.financetracker.evolva.data.model.formatAmount
+import com.financetracker.evolva.data.model.formatAmountNumber
 import com.financetracker.evolva.data.model.formatRecordedAt
 import com.financetracker.evolva.ui.MainViewModel
 import com.financetracker.evolva.ui.components.DateFilterBar
@@ -41,7 +62,6 @@ import com.financetracker.evolva.ui.components.IncomeExpenseBarChart
 import com.financetracker.evolva.ui.components.LineChart
 import com.financetracker.evolva.ui.components.SectionCard
 import com.financetracker.evolva.ui.components.StatCard
-import com.financetracker.evolva.ui.components.TypeTag
 import com.financetracker.evolva.ui.theme.FinanceColors
 import java.time.YearMonth
 import java.time.format.TextStyle
@@ -59,6 +79,7 @@ fun DashboardScreen(viewModel: MainViewModel) {
     val recurringRules by viewModel.recurringRules.collectAsState()
     val currency by viewModel.currency.collectAsState()
     val dateFilter by viewModel.dateFilter.collectAsState()
+    val filterAutoCloseSeconds by viewModel.filterAutoCloseSeconds.collectAsState()
 
     fun fmt(v: Double) = formatAmount(v, currency)
 
@@ -114,7 +135,8 @@ fun DashboardScreen(viewModel: MainViewModel) {
         item {
             DateFilterBar(
                 filter = dateFilter,
-                onFilterChange = viewModel::setDateFilter
+                onFilterChange = viewModel::setDateFilter,
+                autoCloseSeconds = filterAutoCloseSeconds
             )
         }
 
@@ -217,7 +239,7 @@ fun DashboardScreen(viewModel: MainViewModel) {
             title = title,
             subtitle = dateFilter.label(),
             transactions = detailTxs,
-            currencyFormatter = { fmt(it) },
+            currency = currency,
             onDismiss = { detailMetric = null }
         )
     }
@@ -290,50 +312,242 @@ private fun MetricDetailDialog(
     title: String,
     subtitle: String,
     transactions: List<Transaction>,
-    currencyFormatter: (Double) -> String,
+    currency: AppCurrency,
     onDismiss: () -> Unit
 ) {
-    AlertDialog(
+    val context = LocalContext.current
+    var showShareOptions by remember { mutableStateOf(false) }
+
+    fun saveBytes(format: DetailShareFormat, uri: android.net.Uri?) {
+        if (uri == null) return
+        val bytes = DetailExport.buildBytes(format, title, subtitle, transactions, currency)
+        context.contentResolver.openOutputStream(uri)?.let { stream ->
+            DetailExport.writeToStream(stream, bytes)
+        }
+    }
+
+    val saveTextLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument(DetailShareFormat.TEXT.mimeType)
+    ) { uri -> saveBytes(DetailShareFormat.TEXT, uri) }
+    val saveCsvLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument(DetailShareFormat.CSV.mimeType)
+    ) { uri -> saveBytes(DetailShareFormat.CSV, uri) }
+    val savePdfLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument(DetailShareFormat.PDF.mimeType)
+    ) { uri -> saveBytes(DetailShareFormat.PDF, uri) }
+
+    Dialog(
         onDismissRequest = onDismiss,
-        title = {
-            Column {
-                Text(title)
-                Text(subtitle, fontSize = 12.sp, color = FinanceColors.TextSoft)
-            }
-        },
-        text = {
-            if (transactions.isEmpty()) {
-                Text("No transactions in this period.", color = FinanceColors.TextSoft)
-            } else {
-                LazyColumn(modifier = Modifier.height(360.dp)) {
-                    items(transactions, key = { it.id }) { tx ->
-                        val sign = when {
-                            tx.type == TransactionType.EXPENSE -> "-"
-                            tx.type == TransactionType.TRANSFER && tx.direction == TransferDirection.OUT -> "-"
-                            else -> "+"
-                        }
-                        Column(modifier = Modifier.padding(vertical = 8.dp)) {
-                            Text(tx.formatRecordedAt(), fontSize = 11.5.sp, color = FinanceColors.TextSoft)
-                            Spacer(modifier = Modifier.height(3.dp))
-                            TypeTag(tx.type)
-                            Spacer(modifier = Modifier.height(3.dp))
-                            Text(tx.category, fontSize = 13.sp, color = FinanceColors.Text)
-                            Text(
-                                "$sign ${currencyFormatter(tx.amount)}",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Medium
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth(0.96f)
+                .fillMaxHeight(0.9f),
+            shape = RoundedCornerShape(16.dp),
+            color = FinanceColors.Background
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(FinanceColors.Header)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(onClick = onDismiss) {
+                            Icon(
+                                imageVector = Icons.Filled.Close,
+                                contentDescription = "Close",
+                                tint = FinanceColors.OnHeader
                             )
-                            if (!tx.note.isNullOrBlank()) {
-                                Text(tx.note, fontSize = 12.sp, color = FinanceColors.TextSoft)
-                            }
                         }
-                        HorizontalDivider(color = FinanceColors.Border)
+                        Column(modifier = Modifier.weight(1f).padding(horizontal = 4.dp)) {
+                            Text(
+                                title,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = FinanceColors.OnHeader,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                "Filter: $subtitle",
+                                fontSize = 12.sp,
+                                color = FinanceColors.OnHeader.copy(alpha = 0.8f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                "Currency: ${currency.symbol} (${currency.code}) · ${transactions.size} transaction(s)",
+                                fontSize = 11.sp,
+                                color = FinanceColors.OnHeader.copy(alpha = 0.75f),
+                                modifier = Modifier.padding(top = 2.dp),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        IconButton(
+                            onClick = { showShareOptions = true },
+                            enabled = transactions.isNotEmpty()
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Share,
+                                contentDescription = "Share all",
+                                tint = FinanceColors.OnHeader
+                            )
+                        }
+                    }
+                    HorizontalDivider(color = FinanceColors.Accent.copy(alpha = 0.45f), thickness = 2.dp)
+                }
+
+                if (transactions.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                            .background(FinanceColors.BandEven)
+                            .padding(24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("No transactions in this period.", color = FinanceColors.TextSoft)
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                    ) {
+                        items(transactions.size, key = { transactions[it].id }) { index ->
+                            CompactDetailRow(
+                                tx = transactions[index],
+                                currency = currency,
+                                bandColor = if (index % 2 == 0) FinanceColors.BandEven else FinanceColors.BandOdd
+                            )
+                        }
                     }
                 }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Close") }
         }
-    )
+    }
+
+    if (showShareOptions) {
+        AlertDialog(
+            onDismissRequest = { showShareOptions = false },
+            title = { Text("Share or save") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        "Opens the Android share sheet so you can send to any app.",
+                        fontSize = 12.5.sp,
+                        color = FinanceColors.TextSoft
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        "Share via",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = FinanceColors.Text
+                    )
+                    DetailShareFormat.entries.forEach { format ->
+                        TextButton(
+                            onClick = {
+                                showShareOptions = false
+                                DetailExport.share(
+                                    context, format, title, subtitle, transactions, currency
+                                )
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("Share ${format.label}") }
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        "Save to device",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = FinanceColors.Text
+                    )
+                    TextButton(
+                        onClick = {
+                            showShareOptions = false
+                            saveTextLauncher.launch(DetailExport.fileName(title, DetailShareFormat.TEXT))
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Save Text") }
+                    TextButton(
+                        onClick = {
+                            showShareOptions = false
+                            saveCsvLauncher.launch(DetailExport.fileName(title, DetailShareFormat.CSV))
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Save CSV") }
+                    TextButton(
+                        onClick = {
+                            showShareOptions = false
+                            savePdfLauncher.launch(DetailExport.fileName(title, DetailShareFormat.PDF))
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Save PDF") }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showShareOptions = false }) { Text("Cancel") }
+            }
+        )
+    }
+}
+
+@Composable
+private fun CompactDetailRow(
+    tx: Transaction,
+    currency: AppCurrency,
+    bandColor: Color
+) {
+    val sign = when {
+        tx.type == TransactionType.EXPENSE -> "-"
+        tx.type == TransactionType.TRANSFER && tx.direction == TransferDirection.OUT -> "-"
+        else -> "+"
+    }
+    val note = tx.note?.takeIf { it.isNotBlank() }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(bandColor)
+            .padding(horizontal = 16.dp, vertical = 10.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "${tx.formatRecordedAt()} · ${tx.category}",
+                fontSize = 13.sp,
+                color = FinanceColors.Text,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f).padding(end = 8.dp)
+            )
+            Text(
+                text = "$sign ${formatAmountNumber(tx.amount, currency)}",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                color = FinanceColors.Text
+            )
+        }
+        if (note != null) {
+            Text(
+                note,
+                fontSize = 12.sp,
+                color = FinanceColors.TextSoft,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 2.dp)
+            )
+        }
+    }
 }

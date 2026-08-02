@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.clickable
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -22,6 +23,7 @@ import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -60,10 +62,13 @@ fun BudgetScreen(viewModel: MainViewModel) {
     val currency by viewModel.currency.collectAsState()
     val forecastHorizon by viewModel.forecastHorizon.collectAsState()
     val dateFilter by viewModel.dateFilter.collectAsState()
+    val filterAutoCloseSeconds by viewModel.filterAutoCloseSeconds.collectAsState()
+    val customExpenseCategories by viewModel.customExpenseCategories.collectAsState()
 
     fun fmt(v: Double) = formatAmount(v, currency)
 
     val currentMonth = remember { YearMonth.now() }
+    val budgetable = remember(customExpenseCategories) { Categories.budgetable(customExpenseCategories) }
     val budgetRows = remember(transactions, budgets, currentMonth) {
         budgets.map { b ->
             val spent = FinanceCalculator.spendForCategoryMonth(transactions, b.category, currentMonth)
@@ -83,7 +88,9 @@ fun BudgetScreen(viewModel: MainViewModel) {
         (forecast.pastCumulative + forecast.futurePoints.map { it.balance }).map { it.toFloat() }
     }
 
-    var newCategory by remember(budgets) { mutableStateOf(Categories.budgetable.firstOrNull { c -> budgets.none { it.category == c } } ?: Categories.budgetable.first()) }
+    var newCategory by remember(budgets, budgetable) {
+        mutableStateOf(budgetable.firstOrNull { c -> budgets.none { it.category == c } } ?: budgetable.first())
+    }
     var newLimitText by remember { mutableStateOf("") }
     var categoryMenuExpanded by remember { mutableStateOf(false) }
 
@@ -102,7 +109,8 @@ fun BudgetScreen(viewModel: MainViewModel) {
         item {
             DateFilterBar(
                 filter = dateFilter,
-                onFilterChange = viewModel::setDateFilter
+                onFilterChange = viewModel::setDateFilter,
+                autoCloseSeconds = filterAutoCloseSeconds
             )
         }
 
@@ -121,30 +129,62 @@ fun BudgetScreen(viewModel: MainViewModel) {
                             BudgetState.WARN -> FinanceColors.Warn
                             else -> FinanceColors.Income
                         }
-                        Column(Modifier.padding(vertical = 8.dp)) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    newCategory = budget.category
+                                    newLimitText = if (budget.limit == budget.limit.toLong().toDouble()) {
+                                        budget.limit.toLong().toString()
+                                    } else {
+                                        budget.limit.toString()
+                                    }
+                                }
+                                .padding(vertical = 8.dp)
+                        ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(budget.category, fontSize = 13.5.sp, color = FinanceColors.Text)
-                                Text("${fmt(spent)} / ${fmt(budget.limit)}", fontSize = 12.5.sp, color = FinanceColors.TextSoft)
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(budget.category, fontSize = 13.5.sp, color = FinanceColors.Text)
+                                    Text(
+                                        "${fmt(spent)} / ${fmt(budget.limit)} · Tap to edit",
+                                        fontSize = 12.sp,
+                                        color = FinanceColors.TextSoft
+                                    )
+                                }
+                                TextButton(onClick = { viewModel.deleteBudget(budget.category) }) {
+                                    Text("Delete", color = FinanceColors.Expense)
+                                }
                             }
-                            Spacer(Modifier.height(6.dp))
+                            Spacer(modifier = Modifier.height(6.dp))
                             BudgetProgressBar(
                                 progress = if (budget.limit > 0) (spent / budget.limit).toFloat() else 0f,
                                 color = color
                             )
                             if (state == BudgetState.OVER) {
-                                Text("Over budget", fontSize = 11.5.sp, color = FinanceColors.Expense, modifier = Modifier.padding(top = 3.dp))
+                                Text(
+                                    "Over budget",
+                                    fontSize = 11.5.sp,
+                                    color = FinanceColors.Expense,
+                                    modifier = Modifier.padding(top = 3.dp)
+                                )
                             } else if (state == BudgetState.WARN) {
-                                Text("Approaching limit", fontSize = 11.5.sp, color = FinanceColors.Warn, modifier = Modifier.padding(top = 3.dp))
+                                Text(
+                                    "Approaching limit",
+                                    fontSize = 11.5.sp,
+                                    color = FinanceColors.Warn,
+                                    modifier = Modifier.padding(top = 3.dp)
+                                )
                             }
                         }
                     }
                 }
 
-                Spacer(Modifier.height(10.dp))
-                Text("Set a limit", fontSize = 12.sp, color = FinanceColors.TextSoft)
+                Spacer(modifier = Modifier.height(10.dp))
+                Text("Set or edit a limit", fontSize = 12.sp, color = FinanceColors.TextSoft)
                 Spacer(Modifier.height(6.dp))
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     ExposedDropdownMenuBox(
@@ -164,7 +204,7 @@ fun BudgetScreen(viewModel: MainViewModel) {
                             expanded = categoryMenuExpanded,
                             onDismissRequest = { categoryMenuExpanded = false }
                         ) {
-                            Categories.budgetable.forEach { c ->
+                            budgetable.forEach { c ->
                                 DropdownMenuItem(text = { Text(c) }, onClick = {
                                     newCategory = c
                                     newLimitText = budgets.find { it.category == c }?.limit?.let { limit ->

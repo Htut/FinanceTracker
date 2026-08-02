@@ -44,6 +44,11 @@ class FinanceRepository(private val dao: FinanceDao) {
         if (limit <= 0) dao.deleteBudget(category) else dao.upsertBudget(BudgetEntity(category, limit))
     }
 
+    suspend fun deleteBudget(category: String) = dao.deleteBudget(category)
+
+    suspend fun updateRecurringRule(rule: RecurringRule) =
+        dao.updateRecurringRule(rule.toEntity())
+
     /** Used when loading a starter template: never overwrites a limit the user already set. */
     suspend fun setBudgetsIfAbsent(newBudgets: Map<String, Double>) {
         val existingCats = budgets.first().map { it.category }.toSet()

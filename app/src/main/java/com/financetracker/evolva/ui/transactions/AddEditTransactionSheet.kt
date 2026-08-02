@@ -66,6 +66,8 @@ import java.util.UUID
 @Composable
 fun AddEditTransactionSheet(
     existing: Transaction?,
+    customExpenseCategories: List<String> = emptyList(),
+    onAddExpenseCategory: ((String) -> Unit)? = null,
     onDismiss: () -> Unit,
     onSave: (Transaction, Boolean) -> Unit,
     onStopRecurring: (String) -> Unit
@@ -73,7 +75,11 @@ fun AddEditTransactionSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     var type by remember { mutableStateOf(existing?.type ?: TransactionType.EXPENSE) }
-    var category by remember { mutableStateOf(existing?.category ?: Categories.forType(type).first()) }
+    var category by remember {
+        mutableStateOf(
+            existing?.category ?: Categories.forType(TransactionType.EXPENSE, customExpenseCategories).first()
+        )
+    }
     var direction by remember { mutableStateOf(existing?.direction ?: TransferDirection.OUT) }
     var amountText by remember { mutableStateOf(existing?.amount?.let(::formatPlain) ?: "") }
     var date by remember { mutableStateOf(existing?.date ?: LocalDate.now()) }
@@ -84,9 +90,13 @@ fun AddEditTransactionSheet(
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
     var categoryMenuExpanded by remember { mutableStateOf(false) }
+    var showAddExpenseType by remember { mutableStateOf(false) }
+    var newExpenseTypeText by remember { mutableStateOf("") }
 
-    val categories = Categories.forType(type)
-    if (category !in categories) category = categories.first()
+    val categories = Categories.forType(type, customExpenseCategories)
+    if (category !in categories) {
+        category = categories.first()
+    }
 
     val amountValid = amountText.toDoubleOrNull()?.let { it > 0.0 } ?: false
     val timeLabel = time.format(DateTimeFormatter.ofPattern("HH:mm"))
@@ -157,6 +167,16 @@ fun AddEditTransactionSheet(
                             category = c
                             categoryMenuExpanded = false
                         })
+                    }
+                    if (type == TransactionType.EXPENSE && onAddExpenseCategory != null) {
+                        DropdownMenuItem(
+                            text = { Text("Add expense type…") },
+                            onClick = {
+                                categoryMenuExpanded = false
+                                newExpenseTypeText = ""
+                                showAddExpenseType = true
+                            }
+                        )
                     }
                 }
             }
@@ -254,6 +274,35 @@ fun AddEditTransactionSheet(
                 ) { Text(if (existing == null) "Add" else "Save") }
             }
         }
+    }
+
+    if (showAddExpenseType) {
+        AlertDialog(
+            onDismissRequest = { showAddExpenseType = false },
+            title = { Text("New expense type") },
+            text = {
+                OutlinedTextField(
+                    value = newExpenseTypeText,
+                    onValueChange = { newExpenseTypeText = it },
+                    label = { Text("Name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val name = newExpenseTypeText.trim().replace(Regex("\\s+"), " ")
+                    if (name.isNotEmpty()) {
+                        onAddExpenseCategory?.invoke(name)
+                        category = name
+                        showAddExpenseType = false
+                    }
+                }) { Text("Add") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAddExpenseType = false }) { Text("Cancel") }
+            }
+        )
     }
 
     if (showDatePicker) {

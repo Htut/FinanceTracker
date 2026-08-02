@@ -8,4 +8,7 @@ object AppConstants {
     const val APP_NAME = "Finance Tracker"
     const val DEVELOPER_NAME = "eVolva Intelligent Solution"
     const val APP_VERSION = "beta 1.0.0"
+
+    /** Default seconds before the date filter bar auto-collapses. 0 = never. */
+    const val DEFAULT_FILTER_AUTO_CLOSE_SECONDS = 7
 }

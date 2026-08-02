@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
@@ -14,9 +15,11 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -26,22 +29,32 @@ import androidx.navigation.compose.rememberNavController
 import com.financetracker.evolva.ui.MainViewModel
 import com.financetracker.evolva.ui.budget.BudgetScreen
 import com.financetracker.evolva.ui.dashboard.DashboardScreen
+import com.financetracker.evolva.ui.report.ReportScreen
 import com.financetracker.evolva.ui.settings.SettingsScreen
+import com.financetracker.evolva.ui.theme.FinanceColors
 import com.financetracker.evolva.ui.transactions.TransactionsScreen
 
 private sealed class Tab(val route: String, val label: String) {
     data object Dashboard : Tab("dashboard", "Dashboard")
     data object Transactions : Tab("transactions", "Transactions")
     data object Budget : Tab("budget", "Budget")
+    data object Report : Tab("report", "Report")
     data object Settings : Tab("settings", "Settings")
 }
 
-private val tabs = listOf(Tab.Dashboard, Tab.Transactions, Tab.Budget, Tab.Settings)
+private val tabs = listOf(
+    Tab.Dashboard,
+    Tab.Transactions,
+    Tab.Budget,
+    Tab.Report,
+    Tab.Settings
+)
 
 private fun iconFor(tab: Tab) = when (tab) {
     Tab.Dashboard -> Icons.Filled.Dashboard
     Tab.Transactions -> Icons.AutoMirrored.Filled.List
     Tab.Budget -> Icons.Filled.AccountBalanceWallet
+    Tab.Report -> Icons.Filled.Assessment
     Tab.Settings -> Icons.Filled.Settings
 }
 
@@ -50,10 +63,21 @@ private fun iconFor(tab: Tab) = when (tab) {
 fun AppNavGraph(viewModel: MainViewModel) {
     val navController = rememberNavController()
     val infoMessage by viewModel.infoMessage.collectAsState()
+    val context = LocalContext.current
+    val budgetAlertsEnabled by viewModel.budgetAlertsEnabled.collectAsState()
+    val transactions by viewModel.transactions.collectAsState()
+    val budgets by viewModel.budgets.collectAsState()
+
+    LaunchedEffect(budgetAlertsEnabled, transactions, budgets) {
+        if (budgetAlertsEnabled) {
+            viewModel.refreshBudgetAlerts(context)
+        }
+    }
 
     Scaffold(
+        containerColor = FinanceColors.Background,
         bottomBar = {
-            NavigationBar {
+            NavigationBar(containerColor = FinanceColors.Surface) {
                 val backStackEntry by navController.currentBackStackEntryAsState()
                 val currentDestination = backStackEntry?.destination
                 tabs.forEach { tab ->
@@ -82,6 +106,7 @@ fun AppNavGraph(viewModel: MainViewModel) {
             composable(Tab.Dashboard.route) { DashboardScreen(viewModel) }
             composable(Tab.Transactions.route) { TransactionsScreen(viewModel) }
             composable(Tab.Budget.route) { BudgetScreen(viewModel) }
+            composable(Tab.Report.route) { ReportScreen(viewModel) }
             composable(Tab.Settings.route) { SettingsScreen(viewModel) }
         }
     }

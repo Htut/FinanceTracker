@@ -2,48 +2,235 @@ package com.financetracker.evolva.ui.theme
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
-/** Same palette as the web app's CSS custom properties, so the two look related. */
-object FinanceColors {
-    val Background = Color(0xFFFAFAFA)
-    val Surface = Color(0xFFFFFFFF)
-    val Border = Color(0xFFE5E5E5)
-    val Text = Color(0xFF1A1A1A)
-    val TextSoft = Color(0xFF6B6B6B)
-    val Income = Color(0xFF1F8A5F)
-    val Expense = Color(0xFFC0463B)
-    val Savings = Color(0xFF2F6FB0)
-    val Transfer = Color(0xFF7D5FA8)
-    val Warn = Color(0xFFD98C3E)
+data class AppColorPalette(
+    val background: Color,
+    val surface: Color,
+    val border: Color,
+    val text: Color,
+    val textSoft: Color,
+    val income: Color,
+    val expense: Color,
+    val savings: Color,
+    val transfer: Color,
+    val warn: Color,
+    val header: Color,
+    val onHeader: Color,
+    val bandEven: Color,
+    val bandOdd: Color,
+    val accent: Color,
+    val isDark: Boolean,
+    val categoryPalette: List<Color>
+)
 
-    // Same 15-color rotation used for the expense-by-category donut.
-    val CategoryPalette = listOf(
-        Color(0xFFC0463B), Color(0xFFD98C3E), Color(0xFFD9C23E), Color(0xFF6FA85E),
-        Color(0xFF2F6FB0), Color(0xFF7D5FA8), Color(0xFFA8567E), Color(0xFF5F9EA0),
-        Color(0xFFB0752F), Color(0xFF8A8A8A), Color(0xFFE07A5F), Color(0xFF3D9970),
-        Color(0xFF577590), Color(0xFF9C6644), Color(0xFF43AA8B)
+enum class AppThemeOption(val id: String, val label: String, val subtitle: String) {
+    CLASSIC("classic", "Classic", "Clean light ledger"),
+    FOREST("forest", "Forest", "Growth green & navy"),
+    OCEAN("ocean", "Ocean", "Cool coastal blues"),
+    MIDNIGHT("midnight", "Midnight", "Dark focused night"),
+    AMBER("amber", "Amber", "Warm paper & gold"),
+    SLATE("slate", "Slate", "Soft graphite tones");
+
+    companion object {
+        fun fromId(id: String?): AppThemeOption =
+            entries.firstOrNull { it.id == id } ?: CLASSIC
+    }
+}
+
+private val DefaultCategories = listOf(
+    Color(0xFFC0463B), Color(0xFFD98C3E), Color(0xFFD9C23E), Color(0xFF6FA85E),
+    Color(0xFF2F6FB0), Color(0xFF7D5FA8), Color(0xFFA8567E), Color(0xFF5F9EA0),
+    Color(0xFFB0752F), Color(0xFF8A8A8A), Color(0xFFE07A5F), Color(0xFF3D9970),
+    Color(0xFF577590), Color(0xFF9C6644), Color(0xFF43AA8B)
+)
+
+fun AppThemeOption.palette(): AppColorPalette = when (this) {
+    AppThemeOption.CLASSIC -> AppColorPalette(
+        background = Color(0xFFFAFAFA),
+        surface = Color(0xFFFFFFFF),
+        border = Color(0xFFE5E5E5),
+        text = Color(0xFF1A1A1A),
+        textSoft = Color(0xFF6B6B6B),
+        income = Color(0xFF1F8A5F),
+        expense = Color(0xFFC0463B),
+        savings = Color(0xFF2F6FB0),
+        transfer = Color(0xFF7D5FA8),
+        warn = Color(0xFFD98C3E),
+        header = Color(0xFFD9E6F4),
+        onHeader = Color(0xFF16324F),
+        bandEven = Color(0xFFFFFFFF),
+        bandOdd = Color(0xFFF0F2F5),
+        accent = Color(0xFF2F6FB0),
+        isDark = false,
+        categoryPalette = DefaultCategories
+    )
+    AppThemeOption.FOREST -> AppColorPalette(
+        background = Color(0xFFF3F7F4),
+        surface = Color(0xFFFFFFFF),
+        border = Color(0xFFD5E3D9),
+        text = Color(0xFF0F2A24),
+        textSoft = Color(0xFF5A7368),
+        income = Color(0xFF1F8A5F),
+        expense = Color(0xFFC0463B),
+        savings = Color(0xFF1B6B4A),
+        transfer = Color(0xFF2F6FB0),
+        warn = Color(0xFFD98C3E),
+        header = Color(0xFFD5EDE1),
+        onHeader = Color(0xFF0F2A24),
+        bandEven = Color(0xFFFFFFFF),
+        bandOdd = Color(0xFFE8F2EB),
+        accent = Color(0xFF2ECC71),
+        isDark = false,
+        categoryPalette = DefaultCategories
+    )
+    AppThemeOption.OCEAN -> AppColorPalette(
+        background = Color(0xFFF2F7FB),
+        surface = Color(0xFFFFFFFF),
+        border = Color(0xFFD3E2EE),
+        text = Color(0xFF12263A),
+        textSoft = Color(0xFF5E7388),
+        income = Color(0xFF1F8A5F),
+        expense = Color(0xFFC0463B),
+        savings = Color(0xFF1F6F9F),
+        transfer = Color(0xFF3D7EA6),
+        warn = Color(0xFFD98C3E),
+        header = Color(0xFFD4E8F5),
+        onHeader = Color(0xFF12263A),
+        bandEven = Color(0xFFFFFFFF),
+        bandOdd = Color(0xFFE6F0F7),
+        accent = Color(0xFF2F9ED8),
+        isDark = false,
+        categoryPalette = DefaultCategories
+    )
+    AppThemeOption.MIDNIGHT -> AppColorPalette(
+        background = Color(0xFF12151C),
+        surface = Color(0xFF1C212B),
+        border = Color(0xFF2E3645),
+        text = Color(0xFFE8ECF2),
+        textSoft = Color(0xFF9AA3B5),
+        income = Color(0xFF3DCF8E),
+        expense = Color(0xFFE06A5E),
+        savings = Color(0xFF5BA3E0),
+        transfer = Color(0xFFA78BDB),
+        warn = Color(0xFFE0B15A),
+        header = Color(0xFF2A3344),
+        onHeader = Color(0xFFE8ECF2),
+        bandEven = Color(0xFF1C212B),
+        bandOdd = Color(0xFF242B38),
+        accent = Color(0xFF5BA3E0),
+        isDark = true,
+        categoryPalette = DefaultCategories
+    )
+    AppThemeOption.AMBER -> AppColorPalette(
+        background = Color(0xFFFBF7F0),
+        surface = Color(0xFFFFFCF7),
+        border = Color(0xFFE8DCC8),
+        text = Color(0xFF2A2118),
+        textSoft = Color(0xFF7A6A55),
+        income = Color(0xFF2F8A55),
+        expense = Color(0xFFB84A3A),
+        savings = Color(0xFF2F6FB0),
+        transfer = Color(0xFF8A6A3D),
+        warn = Color(0xFFC9892E),
+        header = Color(0xFFF0E2C8),
+        onHeader = Color(0xFF2A2118),
+        bandEven = Color(0xFFFFFCF7),
+        bandOdd = Color(0xFFF3E8D6),
+        accent = Color(0xFFC9892E),
+        isDark = false,
+        categoryPalette = DefaultCategories
+    )
+    AppThemeOption.SLATE -> AppColorPalette(
+        background = Color(0xFFF4F5F7),
+        surface = Color(0xFFFFFFFF),
+        border = Color(0xFFD8DCE3),
+        text = Color(0xFF1E2430),
+        textSoft = Color(0xFF6A7383),
+        income = Color(0xFF1F8A5F),
+        expense = Color(0xFFC0463B),
+        savings = Color(0xFF3F6F9F),
+        transfer = Color(0xFF6B7280),
+        warn = Color(0xFFD98C3E),
+        header = Color(0xFFDDE3EC),
+        onHeader = Color(0xFF1E2430),
+        bandEven = Color(0xFFFFFFFF),
+        bandOdd = Color(0xFFE9EDF3),
+        accent = Color(0xFF4B6A8A),
+        isDark = false,
+        categoryPalette = DefaultCategories
     )
 }
 
-private val LightColors = lightColorScheme(
-    primary = FinanceColors.Text,
-    onPrimary = Color.White,
-    secondary = FinanceColors.TextSoft,
-    onSecondary = Color.White,
-    background = FinanceColors.Background,
-    onBackground = FinanceColors.Text,
-    surface = FinanceColors.Surface,
-    onSurface = FinanceColors.Text,
-    surfaceVariant = FinanceColors.Background,
-    outline = FinanceColors.Border,
-    error = FinanceColors.Expense
-)
+/**
+ * Snapshot-backed palette so existing `FinanceColors.X` call sites recompose
+ * when the user switches theme in Settings.
+ */
+object FinanceColors {
+    private val classic = AppThemeOption.CLASSIC.palette()
+
+    var Background by mutableStateOf(classic.background)
+        private set
+    var Surface by mutableStateOf(classic.surface)
+        private set
+    var Border by mutableStateOf(classic.border)
+        private set
+    var Text by mutableStateOf(classic.text)
+        private set
+    var TextSoft by mutableStateOf(classic.textSoft)
+        private set
+    var Income by mutableStateOf(classic.income)
+        private set
+    var Expense by mutableStateOf(classic.expense)
+        private set
+    var Savings by mutableStateOf(classic.savings)
+        private set
+    var Transfer by mutableStateOf(classic.transfer)
+        private set
+    var Warn by mutableStateOf(classic.warn)
+        private set
+    var Header by mutableStateOf(classic.header)
+        private set
+    var OnHeader by mutableStateOf(classic.onHeader)
+        private set
+    var BandEven by mutableStateOf(classic.bandEven)
+        private set
+    var BandOdd by mutableStateOf(classic.bandOdd)
+        private set
+    var Accent by mutableStateOf(classic.accent)
+        private set
+    var CategoryPalette by mutableStateOf(classic.categoryPalette)
+        private set
+
+    fun apply(palette: AppColorPalette) {
+        Background = palette.background
+        Surface = palette.surface
+        Border = palette.border
+        Text = palette.text
+        TextSoft = palette.textSoft
+        Income = palette.income
+        Expense = palette.expense
+        Savings = palette.savings
+        Transfer = palette.transfer
+        Warn = palette.warn
+        Header = palette.header
+        OnHeader = palette.onHeader
+        BandEven = palette.bandEven
+        BandOdd = palette.bandOdd
+        Accent = palette.accent
+        CategoryPalette = palette.categoryPalette
+    }
+}
 
 private val AppTypography = Typography(
     titleLarge = TextStyle(fontWeight = FontWeight.SemiBold, fontSize = 20.sp),
@@ -53,9 +240,45 @@ private val AppTypography = Typography(
 )
 
 @Composable
-fun FinanceTrackerTheme(content: @Composable () -> Unit) {
+fun FinanceTrackerTheme(
+    theme: AppThemeOption = AppThemeOption.CLASSIC,
+    content: @Composable () -> Unit
+) {
+    val palette = theme.palette()
+    SideEffect { FinanceColors.apply(palette) }
+
+    val scheme = if (palette.isDark) {
+        darkColorScheme(
+            primary = palette.accent,
+            onPrimary = Color.White,
+            secondary = palette.textSoft,
+            onSecondary = Color.White,
+            background = palette.background,
+            onBackground = palette.text,
+            surface = palette.surface,
+            onSurface = palette.text,
+            surfaceVariant = palette.bandOdd,
+            outline = palette.border,
+            error = palette.expense
+        )
+    } else {
+        lightColorScheme(
+            primary = palette.accent,
+            onPrimary = Color.White,
+            secondary = palette.textSoft,
+            onSecondary = Color.White,
+            background = palette.background,
+            onBackground = palette.text,
+            surface = palette.surface,
+            onSurface = palette.text,
+            surfaceVariant = palette.bandOdd,
+            outline = palette.border,
+            error = palette.expense
+        )
+    }
+
     MaterialTheme(
-        colorScheme = LightColors,
+        colorScheme = scheme,
         typography = AppTypography,
         content = content
     )

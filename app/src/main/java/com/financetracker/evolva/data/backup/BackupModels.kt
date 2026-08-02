@@ -44,7 +44,7 @@ data class RecurringRuleDto(
 )
 
 /** Same shape as the web app's JSON backup, so files exported from either
- * version can be imported into the other. */
+ * version can be imported into the other. Unknown fields are ignored on read. */
 @Serializable
 data class BackupPayload(
     val app: String = "finance-tracker-android",
@@ -53,7 +53,9 @@ data class BackupPayload(
     val currency: String,
     val transactions: List<TransactionDto> = emptyList(),
     val budgets: List<BudgetDto> = emptyList(),
-    val recurring: List<RecurringRuleDto> = emptyList()
+    val recurring: List<RecurringRuleDto> = emptyList(),
+    /** User-defined expense category names (built-ins are not stored here). */
+    val customExpenseCategories: List<String> = emptyList()
 )
 
 // ---- Mappers between backup DTOs and domain models ----
