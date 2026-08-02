@@ -7,6 +7,7 @@ import com.financetracker.evolva.data.model.TransactionType
 import com.financetracker.evolva.data.model.TransferDirection
 import kotlinx.serialization.Serializable
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.YearMonth
 
 @Serializable
@@ -16,6 +17,7 @@ data class TransactionDto(
     val category: String,
     val amount: Double,
     val date: String,
+    val time: String? = null,
     val note: String? = null,
     val direction: String? = null,
     val recurringId: String? = null
@@ -57,7 +59,8 @@ data class BackupPayload(
 // ---- Mappers between backup DTOs and domain models ----
 
 fun Transaction.toDto() = TransactionDto(
-    id = id, type = type.name, category = category, amount = amount, date = date.toString(),
+    id = id, type = type.name, category = category, amount = amount,
+    date = date.toString(), time = time?.toString(),
     note = note, direction = direction?.name, recurringId = recurringId
 )
 
@@ -67,6 +70,7 @@ fun TransactionDto.toDomain() = Transaction(
     category = category,
     amount = amount,
     date = LocalDate.parse(date),
+    time = time?.let { LocalTime.parse(it) },
     note = note,
     direction = direction?.let { TransferDirection.valueOf(it) },
     recurringId = recurringId

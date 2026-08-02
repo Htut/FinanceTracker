@@ -2,6 +2,7 @@ package com.financetracker.evolva.ui.transactions
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,6 +13,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DatePicker
@@ -28,9 +31,10 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.foundation.layout.Column
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -49,16 +53,14 @@ import com.financetracker.evolva.data.model.TransferDirection
 import com.financetracker.evolva.ui.theme.FinanceColors
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.UUID
 
 /**
- * One sheet handles both add and edit, mirroring the web app's single
- * modal. When [existing] is null this is "Add Transaction"; otherwise it's
- * pre-filled for editing. "Repeat monthly" only applies when adding a new
- * transaction; editing a transaction that a recurring rule already
- * generated instead offers "Stop repeating".
+ * One sheet handles both add and edit. Time is optional — leave "Include time"
+ * unchecked for a date-only record (the usual case).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -75,15 +77,19 @@ fun AddEditTransactionSheet(
     var direction by remember { mutableStateOf(existing?.direction ?: TransferDirection.OUT) }
     var amountText by remember { mutableStateOf(existing?.amount?.let(::formatPlain) ?: "") }
     var date by remember { mutableStateOf(existing?.date ?: LocalDate.now()) }
+    var includeTime by remember { mutableStateOf(existing?.time != null) }
+    var time by remember { mutableStateOf(existing?.time ?: LocalTime.now().withSecond(0).withNano(0)) }
     var note by remember { mutableStateOf(existing?.note ?: "") }
     var repeatMonthly by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
     var categoryMenuExpanded by remember { mutableStateOf(false) }
 
     val categories = Categories.forType(type)
     if (category !in categories) category = categories.first()
 
     val amountValid = amountText.toDoubleOrNull()?.let { it > 0.0 } ?: false
+    val timeLabel = time.format(DateTimeFormatter.ofPattern("HH:mm"))
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(
@@ -180,6 +186,29 @@ fun AddEditTransactionSheet(
                     .clickable { showDatePicker = true }
             )
 
+            Spacer(Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(checked = includeTime, onCheckedChange = { includeTime = it })
+                Text("Include time", fontSize = 13.sp, color = FinanceColors.Text)
+            }
+            if (includeTime) {
+                Spacer(Modifier.height(6.dp))
+                OutlinedTextField(
+                    value = timeLabel,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Time") },
+                    trailingIcon = {
+                        IconButton(onClick = { showTimePicker = true }) {
+                            Icon(Icons.Filled.Schedule, contentDescription = "Pick time")
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showTimePicker = true }
+                )
+            }
+
             Spacer(Modifier.height(14.dp))
             OutlinedTextField(
                 value = note,
@@ -213,6 +242,7 @@ fun AddEditTransactionSheet(
                             category = category,
                             amount = amount,
                             date = date,
+                            time = if (includeTime) time else null,
                             note = note.ifBlank { null },
                             direction = if (type == TransactionType.TRANSFER) direction else null,
                             recurringId = existing?.recurringId
@@ -246,6 +276,28 @@ fun AddEditTransactionSheet(
         ) {
             DatePicker(state = pickerState)
         }
+    }
+
+    if (showTimePicker) {
+        val timeState = rememberTimePickerState(
+            initialHour = time.hour,
+            initialMinute = time.minute,
+            is24Hour = true
+        )
+        AlertDialog(
+            onDismissRequest = { showTimePicker = false },
+            title = { Text("Select time") },
+            text = { TimePicker(state = timeState) },
+            confirmButton = {
+                TextButton(onClick = {
+                    time = LocalTime.of(timeState.hour, timeState.minute)
+                    showTimePicker = false
+                }) { Text("OK") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTimePicker = false }) { Text("Cancel") }
+            }
+        )
     }
 }
 

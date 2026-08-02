@@ -42,6 +42,7 @@ import com.financetracker.evolva.data.model.Categories
 import com.financetracker.evolva.data.model.formatAmount
 import com.financetracker.evolva.ui.MainViewModel
 import com.financetracker.evolva.ui.components.BudgetProgressBar
+import com.financetracker.evolva.ui.components.DateFilterBar
 import com.financetracker.evolva.ui.components.LineChart
 import com.financetracker.evolva.ui.components.SectionCard
 import com.financetracker.evolva.ui.theme.FinanceColors
@@ -53,10 +54,12 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BudgetScreen(viewModel: MainViewModel) {
-    val transactions by viewModel.transactions.collectAsState()
+    val transactions by viewModel.filteredTransactions.collectAsState()
+    val allTransactions by viewModel.transactions.collectAsState()
     val budgets by viewModel.budgets.collectAsState()
     val currency by viewModel.currency.collectAsState()
     val forecastHorizon by viewModel.forecastHorizon.collectAsState()
+    val dateFilter by viewModel.dateFilter.collectAsState()
 
     fun fmt(v: Double) = formatAmount(v, currency)
 
@@ -68,8 +71,9 @@ fun BudgetScreen(viewModel: MainViewModel) {
         }.sortedByDescending { (_, spent, _) -> spent }
     }
 
-    val forecast = remember(transactions, forecastHorizon) {
-        ForecastCalculator.compute(transactions, forecastHorizon)
+    // Forecast still uses the full history so projections stay meaningful.
+    val forecast = remember(allTransactions, forecastHorizon) {
+        ForecastCalculator.compute(allTransactions, forecastHorizon)
     }
     val forecastLabels = remember(forecast) {
         (forecast.pastMonths + forecast.futurePoints.map { it.month })
@@ -93,6 +97,13 @@ fun BudgetScreen(viewModel: MainViewModel) {
                 Text("Budget", fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = FinanceColors.Text)
                 Text("Limits for ${currentMonth.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} and where cash flow is headed", fontSize = 13.sp, color = FinanceColors.TextSoft)
             }
+        }
+
+        item {
+            DateFilterBar(
+                filter = dateFilter,
+                onFilterChange = viewModel::setDateFilter
+            )
         }
 
         item {

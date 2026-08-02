@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.sp
 import com.financetracker.evolva.data.model.Transaction
 import com.financetracker.evolva.data.model.TransactionType
 import com.financetracker.evolva.data.model.TransferDirection
+import com.financetracker.evolva.data.model.formatRecordedAt
 import com.financetracker.evolva.ui.theme.FinanceColors
 
 @Composable
@@ -44,18 +45,23 @@ fun StatCard(
     label: String,
     value: String,
     modifier: Modifier = Modifier,
-    valueColor: Color = FinanceColors.Text
+    valueColor: Color = FinanceColors.Text,
+    onClick: (() -> Unit)? = null
 ) {
     Card(
-        modifier = modifier,
+        modifier = if (onClick != null) modifier.clickable(onClick = onClick) else modifier,
         shape = RoundedCornerShape(10.dp),
         colors = CardDefaults.cardColors(containerColor = FinanceColors.Surface),
         border = BorderStroke(1.dp, FinanceColors.Border)
     ) {
-        Column(Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(16.dp)) {
             Text(label, fontSize = 12.sp, color = FinanceColors.TextSoft)
-            Spacer(Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(6.dp))
             Text(value, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = valueColor)
+            if (onClick != null) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text("Tap for details", fontSize = 10.5.sp, color = FinanceColors.TextSoft)
+            }
         }
     }
 }
@@ -166,7 +172,7 @@ fun TransactionRow(
     ) {
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(transaction.date.toString(), fontSize = 12.sp, color = FinanceColors.TextSoft)
+                Text(transaction.formatRecordedAt(), fontSize = 12.sp, color = FinanceColors.TextSoft)
                 if (transaction.recurringId != null) {
                     Spacer(Modifier.width(4.dp))
                     Icon(

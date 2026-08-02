@@ -46,10 +46,11 @@ object BackupManager {
     }
 
     fun toCsv(transactions: List<Transaction>, currencyCode: String): String {
-        val header = listOf("Date", "Type", "Direction", "Category", "Note", "Amount", "Currency")
-        val rows = transactions.sortedBy { it.date }.map { t ->
+        val header = listOf("Date", "Time", "Type", "Direction", "Category", "Note", "Amount", "Currency")
+        val rows = transactions.sortedWith(compareBy({ it.date }, { it.time })).map { t ->
             listOf(
                 t.date.toString(),
+                t.time?.toString().orEmpty(),
                 t.type.name,
                 t.direction?.name ?: "",
                 t.category,

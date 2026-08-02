@@ -8,8 +8,10 @@ import com.financetracker.evolva.data.backup.BackupManager
 import com.financetracker.evolva.data.backup.toDomain
 import com.financetracker.evolva.data.model.AppCurrency
 import com.financetracker.evolva.data.model.Budget
+import com.financetracker.evolva.data.model.DateFilter
 import com.financetracker.evolva.data.model.RecurringRule
 import com.financetracker.evolva.data.model.Transaction
+import com.financetracker.evolva.data.model.filteredBy
 import com.financetracker.evolva.data.prefs.PasswordChangeResult
 import com.financetracker.evolva.data.prefs.SettingsDataStore
 import com.financetracker.evolva.data.repository.FinanceRepository
@@ -17,6 +19,7 @@ import com.financetracker.evolva.data.templates.AppTemplate
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.YearMonth
@@ -52,16 +55,37 @@ class MainViewModel(
     val hasAppPassword: StateFlow<Boolean> = settingsDataStore.hasAppPassword
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
+    private val _dateFilter = MutableStateFlow<DateFilter>(DateFilter.All)
+    val dateFilter: StateFlow<DateFilter> = _dateFilter
+
+    val filteredTransactions: StateFlow<List<Transaction>> =
+        combine(transactions, _dateFilter) { txs, filter -> txs.filteredBy(filter) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    private val _infoMessage = MutableStateFlow<String?>(null)
+    val infoMessage: StateFlow<String?> = _infoMessage
+
     private val _forecastHorizon = MutableStateFlow(6)
     val forecastHorizon: StateFlow<Int> = _forecastHorizon
 
     init {
-        // Catch up any due recurring transactions as soon as the app opens.
         viewModelScope.launch { repository.runRecurringEngine() }
     }
 
     fun setForecastHorizon(months: Int) {
         _forecastHorizon.value = months
+    }
+
+    fun setDateFilter(filter: DateFilter) {
+        _dateFilter.value = filter
+    }
+
+    fun dismissInfoMessage() {
+        _infoMessage.value = null
+    }
+
+    fun showInfoMessage(message: String) {
+        _infoMessage.value = message
     }
 
     fun setCurrency(currency: AppCurrency) {
@@ -131,11 +155,19 @@ class MainViewModel(
             val rows = template.generate()
             repository.addTransactions(rows)
             template.budgets?.let { repository.setBudgetsIfAbsent(it) }
+            val budgetNote = if (template.budgets != null) " Budget limits were applied where missing." else ""
+            _infoMessage.value =
+                "Template \"${template.label}\" loaded.\n\n${rows.size} transactions were added.$budgetNote"
         }
     }
 
     fun clearAllTransactions() {
-        viewModelScope.launch { repository.clearTransactions() }
+        viewModelScope.launch {
+            val count = transactions.value.size
+            repository.clearTransactions()
+            _infoMessage.value =
+                "All transactions cleared.\n\n$count transaction${if (count == 1) "" else "s"} removed. Budgets and recurring rules were kept."
+        }
     }
 
     fun exportBackupJson(): String = BackupManager.toJson(
@@ -144,7 +176,6 @@ class MainViewModel(
 
     fun exportCsv(): String = BackupManager.toCsv(transactions.value, currency.value.code)
 
-    /** Returns null if the text isn't a recognizable backup file. */
     fun importBackup(json: String, replace: Boolean): ImportResult {
         val payload = BackupManager.parseJson(json) ?: return ImportResult.Invalid
         val importedTransactions = payload.transactions.map { it.toDomain() }
@@ -154,8 +185,12 @@ class MainViewModel(
             if (replace) {
                 repository.replaceAll(importedTransactions, importedBudgets, importedRules)
                 settingsDataStore.setCurrency(AppCurrency.fromCode(payload.currency))
+                _infoMessage.value =
+                    "Backup imported and replaced existing data.\n\n${importedTransactions.size} transactions restored."
             } else {
                 repository.mergeIn(importedTransactions, importedBudgets, importedRules)
+                _infoMessage.value =
+                    "Backup imported and merged.\n\n${importedTransactions.size} transactions added."
             }
         }
         return ImportResult.Success(importedTransactions.size)

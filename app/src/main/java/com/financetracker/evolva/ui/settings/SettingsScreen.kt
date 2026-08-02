@@ -282,8 +282,6 @@ private fun SecuritySettingsTab(viewModel: MainViewModel) {
             viewModel.clearAllTransactions()
             showClearConfirm = false
             dangerError = null
-            statusIsError = false
-            statusMessage = "All transactions cleared."
         } else {
             dangerError = "Device confirmation was cancelled or failed."
         }

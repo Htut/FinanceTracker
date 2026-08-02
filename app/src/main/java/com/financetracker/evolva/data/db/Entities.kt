@@ -8,6 +8,7 @@ import com.financetracker.evolva.data.model.Transaction
 import com.financetracker.evolva.data.model.TransactionType
 import com.financetracker.evolva.data.model.TransferDirection
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.YearMonth
 
 @Entity(tableName = "transactions")
@@ -16,7 +17,8 @@ data class TransactionEntity(
     val type: String,
     val category: String,
     val amount: Double,
-    val date: String, // ISO-8601, e.g. "2026-08-01"
+    val date: String, // ISO-8601 date, e.g. "2026-08-01"
+    val time: String? = null, // optional "HH:mm:ss" / "HH:mm"
     val note: String?,
     val direction: String?,
     val recurringId: String?
@@ -50,6 +52,7 @@ fun TransactionEntity.toDomain() = Transaction(
     category = category,
     amount = amount,
     date = LocalDate.parse(date),
+    time = time?.let { LocalTime.parse(it) },
     note = note,
     direction = direction?.let { TransferDirection.valueOf(it) },
     recurringId = recurringId
@@ -61,6 +64,7 @@ fun Transaction.toEntity() = TransactionEntity(
     category = category,
     amount = amount,
     date = date.toString(),
+    time = time?.toString(),
     note = note,
     direction = direction?.name,
     recurringId = recurringId

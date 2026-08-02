@@ -1,7 +1,9 @@
 package com.financetracker.evolva.data.model
 
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.YearMonth
+import java.time.format.DateTimeFormatter
 import java.util.UUID
 
 enum class TransactionType { INCOME, EXPENSE, SAVINGS, TRANSFER }
@@ -52,12 +54,20 @@ data class Transaction(
     val category: String,
     val amount: Double,
     val date: LocalDate,
+    /** Optional wall-clock time; null means "date only" (usual case). */
+    val time: LocalTime? = null,
     val note: String? = null,
     // Only meaningful when type == TRANSFER: OUT = money sent, IN = received.
     val direction: TransferDirection? = null,
     // Set when this transaction was auto-posted by a RecurringRule.
     val recurringId: String? = null
 )
+
+private val TIME_FMT: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
+
+/** Date always; time only when present. */
+fun Transaction.formatRecordedAt(): String =
+    if (time != null) "$date ${time.format(TIME_FMT)}" else date.toString()
 
 data class Budget(
     val category: String,
