@@ -5,6 +5,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -15,7 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -65,7 +66,6 @@ import com.financetracker.evolva.ui.components.StatCard
 import com.financetracker.evolva.ui.theme.FinanceColors
 import java.time.YearMonth
 import java.time.format.TextStyle
-import java.util.Locale
 
 private enum class DashboardMetric {
     INCOME, EXPENSE, SAVINGS, TRANSFER_NET, NET, AVG_INCOME, AVG_EXPENSE, AVG_SAVINGS
@@ -95,8 +95,9 @@ fun DashboardScreen(viewModel: MainViewModel) {
     }
 
     val last6Months = remember(transactions) { FinanceCalculator.lastNMonths(6) }
-    val monthLabels = remember(last6Months) {
-        last6Months.map { it.month.getDisplayName(TextStyle.SHORT, Locale.getDefault()) }
+    val locale = LocalConfiguration.current.locales[0]
+    val monthLabels = remember(last6Months, locale) {
+        last6Months.map { it.month.getDisplayName(TextStyle.SHORT, locale) }
     }
     val incomeSeries = remember(transactions, last6Months) {
         last6Months.map { FinanceCalculator.sumFor(transactions, TransactionType.INCOME, it).toFloat() }
@@ -257,32 +258,34 @@ private fun ResponsiveStatGrid(
     entries: List<StatEntry>,
     onCardClick: (DashboardMetric) -> Unit
 ) {
-    val widthDp = LocalConfiguration.current.screenWidthDp
-    val columns = when {
-        widthDp >= 900 -> 4
-        widthDp >= 600 -> 3
-        else -> 2
-    }
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        entries.chunked(columns).forEach { rowEntries ->
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                rowEntries.forEach { entry ->
-                    StatCard(
-                        label = entry.label,
-                        value = entry.value,
-                        valueColor = entry.color,
-                        modifier = Modifier.weight(1f),
-                        onClick = { onCardClick(entry.metric) }
-                    )
-                }
-                repeat(columns - rowEntries.size) {
-                    Spacer(modifier = Modifier.weight(1f))
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        val availableWidth = this.maxWidth
+        val columns = when {
+            availableWidth >= 900.dp -> 4
+            availableWidth >= 600.dp -> 3
+            else -> 2
+        }
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            entries.chunked(columns).forEach { rowEntries ->
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    rowEntries.forEach { entry ->
+                        StatCard(
+                            label = entry.label,
+                            value = entry.value,
+                            valueColor = entry.color,
+                            modifier = Modifier.weight(1f),
+                            onClick = { onCardClick(entry.metric) }
+                        )
+                    }
+                    repeat(columns - rowEntries.size) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
                 }
             }
         }
@@ -422,9 +425,9 @@ private fun MetricDetailDialog(
                             .weight(1f)
                             .fillMaxWidth()
                     ) {
-                        items(transactions.size, key = { transactions[it].id }) { index ->
+                        itemsIndexed(transactions, key = { _, tx -> tx.id }) { index, tx ->
                             CompactDetailRow(
-                                tx = transactions[index],
+                                tx = tx,
                                 currency = currency,
                                 bandColor = if (index % 2 == 0) FinanceColors.BandEven else FinanceColors.BandOdd
                             )

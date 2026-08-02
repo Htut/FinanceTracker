@@ -49,14 +49,15 @@ import com.financetracker.evolva.ui.components.DateFilterBar
 import com.financetracker.evolva.ui.components.LineChart
 import com.financetracker.evolva.ui.components.SectionCard
 import com.financetracker.evolva.ui.theme.FinanceColors
+import androidx.compose.ui.platform.LocalConfiguration
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BudgetScreen(viewModel: MainViewModel) {
+    val locale = LocalConfiguration.current.locales[0]
     val transactions by viewModel.filteredTransactions.collectAsState()
     val allTransactions by viewModel.transactions.collectAsState()
     val budgets by viewModel.budgets.collectAsState()
@@ -81,9 +82,9 @@ fun BudgetScreen(viewModel: MainViewModel) {
     val forecast = remember(allTransactions, forecastHorizon) {
         ForecastCalculator.compute(allTransactions, forecastHorizon)
     }
-    val forecastLabels = remember(forecast) {
+    val forecastLabels = remember(forecast, locale) {
         (forecast.pastMonths + forecast.futurePoints.map { it.month })
-            .map { it.month.getDisplayName(TextStyle.SHORT, Locale.getDefault()) }
+            .map { it.month.getDisplayName(TextStyle.SHORT, locale) }
     }
     val forecastValues = remember(forecast) {
         (forecast.pastCumulative + forecast.futurePoints.map { it.balance }).map { it.toFloat() }
@@ -103,7 +104,11 @@ fun BudgetScreen(viewModel: MainViewModel) {
         item {
             Column {
                 Text("Budget", fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = FinanceColors.Text)
-                Text("Limits for ${currentMonth.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} and where cash flow is headed", fontSize = 13.sp, color = FinanceColors.TextSoft)
+                Text(
+                    "Limits for ${currentMonth.month.getDisplayName(TextStyle.FULL, locale)} and where cash flow is headed",
+                    fontSize = 13.sp,
+                    color = FinanceColors.TextSoft
+                )
             }
         }
 

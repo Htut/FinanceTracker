@@ -8,8 +8,9 @@ import com.financetracker.evolva.data.repository.FinanceRepository
 /**
  * Simple manual DI: one Room database, one repository, one settings store,
  * all owned by the Application so they survive configuration changes and
- * are shared by every screen through [MainViewModel]. No Hilt/Koin — for a
- * single-screen-graph app like this it's not worth the extra moving parts.
+ * are shared by every screen through [com.financetracker.evolva.ui.MainViewModel].
+ * No Hilt/Koin — for a single-screen-graph app like this it's not worth the
+ * extra moving parts.
  */
 class FinanceApp : Application() {
 

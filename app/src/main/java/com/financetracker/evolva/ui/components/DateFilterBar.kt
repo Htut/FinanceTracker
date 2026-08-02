@@ -37,6 +37,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -50,7 +51,6 @@ import java.time.Year
 import java.time.YearMonth
 import java.time.ZoneOffset
 import java.time.format.TextStyle
-import java.util.Locale
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.delay
 
@@ -208,10 +208,14 @@ private fun MonthWheelPickerDialog(
     onDismiss: () -> Unit,
     onConfirm: (YearMonth) -> Unit
 ) {
+    val locale = LocalConfiguration.current.locales[0]
     val years = remember { (Year.now().value - 15..Year.now().value + 2).toList() }
     val months = remember { Month.entries.toList() }
     var selectedYear by remember { mutableIntStateOf(initialMonth.year) }
     var selectedMonth by remember { mutableIntStateOf(initialMonth.monthValue) }
+    val monthLabels = remember(months, locale) {
+        months.map { it.getDisplayName(TextStyle.FULL, locale) }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -223,9 +227,7 @@ private fun MonthWheelPickerDialog(
             ) {
                 ScrollSelectColumn(
                     title = "Month",
-                    items = months.map {
-                        it.getDisplayName(TextStyle.FULL, Locale.getDefault())
-                    },
+                    items = monthLabels,
                     selectedIndex = selectedMonth - 1,
                     onSelected = { selectedMonth = it + 1 },
                     modifier = Modifier.weight(1.2f)
