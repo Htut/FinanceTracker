@@ -29,10 +29,6 @@ sealed class DateFilter {
         }
     }
 
-    companion object {
-        fun defaultMonth(now: YearMonth = YearMonth.now()) = Month(now)
-        fun currentYear(year: Int = java.time.Year.now().value) = Year(year)
-    }
 }
 
 fun List<Transaction>.filteredBy(filter: DateFilter): List<Transaction> =

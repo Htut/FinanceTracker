@@ -4,8 +4,6 @@ import com.financetracker.evolva.data.model.AppCurrency
 import com.financetracker.evolva.data.model.Budget
 import com.financetracker.evolva.data.model.RecurringRule
 import com.financetracker.evolva.data.model.Transaction
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.time.Instant
 
@@ -38,12 +36,13 @@ object BackupManager {
         customExpenseCategories = customExpenseCategories
     )
 
-    fun toJson(payload: BackupPayload): String = json.encodeToString(payload)
+    fun toJson(payload: BackupPayload): String =
+        json.encodeToString(BackupPayload.serializer(), payload)
 
     /** Returns null if the text isn't a recognizable backup file. */
     fun parseJson(text: String): BackupPayload? = try {
-        json.decodeFromString<BackupPayload>(text)
-    } catch (e: Exception) {
+        json.decodeFromString(BackupPayload.serializer(), text)
+    } catch (_: Exception) {
         null
     }
 

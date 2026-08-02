@@ -109,10 +109,6 @@ class MainViewModel(
         _infoMessage.value = null
     }
 
-    fun showInfoMessage(message: String) {
-        _infoMessage.value = message
-    }
-
     fun setCurrency(currency: AppCurrency) {
         viewModelScope.launch { settingsDataStore.setCurrency(currency) }
     }

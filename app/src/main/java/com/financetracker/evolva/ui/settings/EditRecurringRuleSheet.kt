@@ -16,6 +16,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -124,7 +125,9 @@ fun EditRecurringRuleSheet(
                     readOnly = true,
                     label = { Text(if (type == TransactionType.TRANSFER) "Relation" else "Category") },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryMenuExpanded) },
-                    modifier = Modifier.menuAnchor().fillMaxWidth()
+                    modifier = Modifier
+                        .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                        .fillMaxWidth()
                 )
                 ExposedDropdownMenu(
                     expanded = categoryMenuExpanded,
@@ -159,7 +162,9 @@ fun EditRecurringRuleSheet(
                     readOnly = true,
                     label = { Text("Day of month") },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = dayMenuExpanded) },
-                    modifier = Modifier.menuAnchor().fillMaxWidth()
+                    modifier = Modifier
+                        .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                        .fillMaxWidth()
                 )
                 ExposedDropdownMenu(
                     expanded = dayMenuExpanded,

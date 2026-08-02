@@ -68,8 +68,8 @@ fun StatCard(
 
 @Composable
 fun SectionCard(
-    title: String? = null,
     modifier: Modifier = Modifier,
+    title: String? = null,
     trailing: @Composable (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
@@ -98,8 +98,9 @@ fun SectionCard(
 
 @Composable
 fun BudgetProgressBar(progress: Float, color: Color, modifier: Modifier = Modifier) {
+    val clamped = progress.coerceIn(0f, 1f)
     LinearProgressIndicator(
-        progress = progress.coerceIn(0f, 1f),
+        progress = { clamped },
         modifier = modifier
             .fillMaxWidth()
             .height(8.dp)

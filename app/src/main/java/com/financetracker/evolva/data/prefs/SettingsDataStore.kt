@@ -13,8 +13,8 @@ import com.financetracker.evolva.data.security.PasswordHasher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.encodeToString
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 
 private val Context.dataStore by preferencesDataStore(name = "finance_settings")
@@ -83,7 +83,8 @@ class SettingsDataStore(private val context: Context) {
             if (normalized.isEmpty()) {
                 it.remove(customExpenseCategoriesKey)
             } else {
-                it[customExpenseCategoriesKey] = json.encodeToString(normalized)
+                it[customExpenseCategoriesKey] =
+                    json.encodeToString(ListSerializer(String.serializer()), normalized)
             }
         }
     }
@@ -105,8 +106,9 @@ class SettingsDataStore(private val context: Context) {
     private fun decodeCategoryList(raw: String?): List<String> {
         if (raw.isNullOrBlank()) return emptyList()
         return try {
-            Categories.normalizeCustom(json.decodeFromString<List<String>>(raw))
-                .filterNot { Categories.isBuiltInExpense(it) }
+            Categories.normalizeCustom(
+                json.decodeFromString(ListSerializer(String.serializer()), raw)
+            ).filterNot { Categories.isBuiltInExpense(it) }
         } catch (_: Exception) {
             Categories.normalizeCustom(raw.split('\n'))
                 .filterNot { Categories.isBuiltInExpense(it) }

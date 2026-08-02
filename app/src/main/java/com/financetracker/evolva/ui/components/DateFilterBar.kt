@@ -51,6 +51,7 @@ import java.time.YearMonth
 import java.time.ZoneOffset
 import java.time.format.TextStyle
 import java.util.Locale
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -58,8 +59,8 @@ import kotlinx.coroutines.delay
 fun DateFilterBar(
     filter: DateFilter,
     onFilterChange: (DateFilter) -> Unit,
-    autoCloseSeconds: Int = 7,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    autoCloseSeconds: Int = 7
 ) {
     var expanded by remember { mutableStateOf(true) }
     var interactionTick by remember { mutableIntStateOf(0) }
@@ -80,7 +81,7 @@ fun DateFilterBar(
         }
         secondsLeft = autoCloseSeconds
         while (secondsLeft > 0) {
-            delay(1000)
+            delay(1.seconds)
             secondsLeft--
         }
         expanded = false
