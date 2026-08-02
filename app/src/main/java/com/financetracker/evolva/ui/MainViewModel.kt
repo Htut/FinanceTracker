@@ -10,6 +10,7 @@ import com.financetracker.evolva.data.model.AppCurrency
 import com.financetracker.evolva.data.model.Budget
 import com.financetracker.evolva.data.model.RecurringRule
 import com.financetracker.evolva.data.model.Transaction
+import com.financetracker.evolva.data.prefs.PasswordChangeResult
 import com.financetracker.evolva.data.prefs.SettingsDataStore
 import com.financetracker.evolva.data.repository.FinanceRepository
 import com.financetracker.evolva.data.templates.AppTemplate
@@ -48,6 +49,9 @@ class MainViewModel(
     val currency: StateFlow<AppCurrency> = settingsDataStore.currency
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AppCurrency.MYR)
 
+    val hasAppPassword: StateFlow<Boolean> = settingsDataStore.hasAppPassword
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
     private val _forecastHorizon = MutableStateFlow(6)
     val forecastHorizon: StateFlow<Int> = _forecastHorizon
 
@@ -62,6 +66,19 @@ class MainViewModel(
 
     fun setCurrency(currency: AppCurrency) {
         viewModelScope.launch { settingsDataStore.setCurrency(currency) }
+    }
+
+    suspend fun verifyAppPassword(password: String): Boolean =
+        settingsDataStore.verifyAppPassword(password)
+
+    fun changeAppPassword(
+        currentPassword: String,
+        newPassword: String,
+        onResult: (PasswordChangeResult) -> Unit
+    ) {
+        viewModelScope.launch {
+            onResult(settingsDataStore.setAppPassword(currentPassword, newPassword))
+        }
     }
 
     fun addTransaction(transaction: Transaction, repeatMonthly: Boolean) {
