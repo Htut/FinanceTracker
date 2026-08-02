@@ -23,11 +23,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.financetracker.evolva.R
 import com.financetracker.evolva.data.AppConstants
 import com.financetracker.evolva.data.security.DeviceCredentialAuth
 import com.financetracker.evolva.ui.theme.FinanceColors
@@ -58,48 +60,50 @@ fun AppLockScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            AppConstants.APP_NAME,
+            text = AppConstants.APP_NAME,
             fontSize = 22.sp,
             fontWeight = FontWeight.SemiBold,
             color = FinanceColors.Text
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            "Enter your app password to continue",
+            text = stringResource(R.string.unlock_title),
             fontSize = 13.sp,
             color = FinanceColors.TextSoft
         )
         Spacer(modifier = Modifier.height(24.dp))
         OutlinedTextField(
             value = password,
-            onValueChange = {
-                password = it
+            onValueChange = { value ->
+                password = value
                 error = null
             },
-            label = { Text("App password") },
+            label = { Text(stringResource(R.string.app_password_label)) },
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
-        error?.let {
+        error?.let { message ->
             Spacer(modifier = Modifier.height(8.dp))
-            Text(it, color = FinanceColors.Expense, fontSize = 12.5.sp)
+            Text(text = message, color = FinanceColors.Expense, fontSize = 12.5.sp)
         }
         Spacer(modifier = Modifier.height(16.dp))
         Button(
             onClick = {
                 onUnlockWithPassword(password) { ok ->
-                    if (ok) onUnlocked() else error = "Incorrect password"
+                    if (ok) onUnlocked() else error = context.getString(R.string.incorrect_password)
                 }
             },
             enabled = password.isNotBlank(),
             modifier = Modifier.fillMaxWidth()
-        ) { Text("Unlock") }
+        ) {
+            Text(stringResource(R.string.unlock_button))
+        }
 
-        val confirmIntent = activity?.let {
+        val confirmIntent = activity?.let { act ->
             DeviceCredentialAuth.createConfirmIntent(
-                it,
+                act,
                 title = "Unlock ${AppConstants.APP_NAME}",
                 description = "Confirm with your device lock"
             )
@@ -109,7 +113,9 @@ fun AppLockScreen(
             OutlinedButton(
                 onClick = { deviceAuthLauncher.launch(confirmIntent) },
                 modifier = Modifier.fillMaxWidth()
-            ) { Text("Use device lock") }
+            ) {
+                Text(stringResource(R.string.unlock_device_lock))
+            }
         }
     }
 }

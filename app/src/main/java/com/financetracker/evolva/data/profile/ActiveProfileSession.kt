@@ -44,7 +44,6 @@ class ActiveProfileSession(
     private val mutex = Mutex()
 
     private val _binding = MutableStateFlow<ProfileBinding?>(null)
-    val binding: StateFlow<ProfileBinding?> = _binding
 
     val profiles: StateFlow<List<TrackerProfile>> = appSettings.profiles
         .stateIn(scope, SharingStarted.Eagerly, listOf(TrackerProfile.personal()))
