@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
+import com.financetracker.evolva.R
 import com.financetracker.evolva.data.AppConstants
 import com.financetracker.evolva.data.backup.BackupManager
 import com.financetracker.evolva.data.backup.toDomain
@@ -25,6 +26,7 @@ import com.financetracker.evolva.data.prefs.SettingsDataStore
 import com.financetracker.evolva.data.profile.ActiveProfileSession
 import com.financetracker.evolva.data.profile.ProfileIds
 import com.financetracker.evolva.data.profile.TrackerProfile
+import com.financetracker.evolva.data.rates.ExchangeRateFetcher
 import com.financetracker.evolva.data.receipt.ReceiptStore
 import com.financetracker.evolva.data.templates.AppTemplate
 import com.financetracker.evolva.ui.theme.AppThemeOption
@@ -49,12 +51,17 @@ sealed class UndoAction {
 }
 
 class MainViewModel(
+    private val appContext: Context,
     private val profileSession: ActiveProfileSession,
     private val settingsDataStore: SettingsDataStore
 ) : ViewModel() {
 
     private val repository get() = profileSession.requireRepository()
     private val profileSettings get() = profileSession.requireSettings()
+
+    private fun str(resId: Int, vararg args: Any): String =
+        if (args.isEmpty()) appContext.getString(resId)
+        else appContext.getString(resId, *args)
 
     val profiles: StateFlow<List<TrackerProfile>> = profileSession.profiles
     val activeProfile: StateFlow<TrackerProfile> = profileSession.activeProfile
@@ -180,6 +187,20 @@ class MainViewModel(
         viewModelScope.launch { profileSettings.setExchangeRate(foreignCode, rateToHome) }
     }
 
+    fun fetchLiveExchangeRates() {
+        viewModelScope.launch {
+            val home = currency.value
+            ExchangeRateFetcher.fetchRatesToHome(home)
+                .onSuccess { rates ->
+                    profileSettings.setExchangeRates(rates)
+                    _infoMessage.value = str(R.string.fetch_live_rates_ok)
+                }
+                .onFailure {
+                    _infoMessage.value = str(R.string.fetch_live_rates_fail)
+                }
+        }
+    }
+
     fun setFilterAutoCloseSeconds(seconds: Int) {
         viewModelScope.launch { profileSettings.setFilterAutoCloseSeconds(seconds) }
     }
@@ -205,8 +226,7 @@ class MainViewModel(
             val ok = profileSettings.addCustomExpenseCategory(name)
             onResult?.invoke(ok)
             if (!ok) {
-                _infoMessage.value =
-                    "Could not add expense type. Use a non-empty name that is not already listed."
+                _infoMessage.value = str(R.string.msg_could_not_add_expense_type)
             }
         }
     }
@@ -320,9 +340,9 @@ class MainViewModel(
                 profileSession.switchTo(profileId)
                 _undoAction.value = null
                 _dateFilter.value = DateFilter.All
-                _infoMessage.value = "Switched to \"${activeProfile.value.displayName}\"."
+                _infoMessage.value = str(R.string.msg_switched_profile, activeProfile.value.displayName)
             } catch (e: Exception) {
-                _infoMessage.value = e.message ?: "Could not switch profile."
+                _infoMessage.value = e.message ?: str(R.string.msg_could_not_switch)
             }
         }
     }
@@ -330,13 +350,13 @@ class MainViewModel(
     fun setupTemplateProfile(template: AppTemplate) {
         viewModelScope.launch {
             try {
-                val profile = profileSession.setupTemplate(template)
+                val name = appContext.getString(template.labelRes)
+                val profile = profileSession.setupTemplate(template, name)
                 _undoAction.value = null
                 _dateFilter.value = DateFilter.All
-                _infoMessage.value =
-                    "Profile \"${profile.displayName}\" is ready with sample data."
+                _infoMessage.value = str(R.string.msg_profile_ready, profile.displayName)
             } catch (e: Exception) {
-                _infoMessage.value = e.message ?: "Could not set up template."
+                _infoMessage.value = e.message ?: str(R.string.msg_could_not_setup)
             }
         }
     }
@@ -344,16 +364,16 @@ class MainViewModel(
     fun deleteTemplateProfile(profileId: String) {
         viewModelScope.launch {
             if (profileId == ProfileIds.PERSONAL) {
-                _infoMessage.value = "My Tracker cannot be deleted."
+                _infoMessage.value = str(R.string.msg_cannot_delete_personal)
                 return@launch
             }
             try {
                 val name = profiles.value.find { it.id == profileId }?.displayName ?: "profile"
                 profileSession.deleteTemplateProfile(profileId)
                 _undoAction.value = null
-                _infoMessage.value = "Deleted \"$name\"."
+                _infoMessage.value = str(R.string.msg_deleted_profile, name)
             } catch (e: Exception) {
-                _infoMessage.value = e.message ?: "Could not delete profile."
+                _infoMessage.value = e.message ?: str(R.string.msg_could_not_delete)
             }
         }
     }
@@ -400,7 +420,7 @@ class MainViewModel(
                     profileSettings.setExchangeRates(payload.exchangeRates)
                 }
                 _infoMessage.value =
-                    "Backup imported and replaced data in this profile.\n\n${importedTransactions.size} transactions restored."
+                    str(R.string.msg_backup_replaced, importedTransactions.size)
             } else {
                 repository.mergeIn(
                     importedTransactions, importedBudgets, importedRules, importedAccounts
@@ -415,7 +435,7 @@ class MainViewModel(
                     )
                 }
                 _infoMessage.value =
-                    "Backup imported and merged into this profile.\n\n${importedTransactions.size} transactions added."
+                    str(R.string.msg_backup_merged, importedTransactions.size)
             }
         }
         return ImportResult.Success(importedTransactions.size)
@@ -423,13 +443,14 @@ class MainViewModel(
 }
 
 class MainViewModelFactory(
+    private val appContext: Context,
     private val profileSession: ActiveProfileSession,
     private val settingsDataStore: SettingsDataStore
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T {
         if (modelClass.isAssignableFrom(MainViewModel::class.java)) {
-            return MainViewModel(profileSession, settingsDataStore) as T
+            return MainViewModel(appContext.applicationContext, profileSession, settingsDataStore) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class: $modelClass")
     }

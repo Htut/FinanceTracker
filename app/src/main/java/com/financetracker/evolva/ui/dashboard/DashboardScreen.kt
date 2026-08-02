@@ -51,6 +51,7 @@ import com.financetracker.evolva.data.calc.FinanceCalculator
 import com.financetracker.evolva.data.calc.InsightsCalculator
 import com.financetracker.evolva.data.export.DetailExport
 import com.financetracker.evolva.data.export.DetailShareFormat
+import com.financetracker.evolva.data.locale.CategoryLabels
 import com.financetracker.evolva.data.model.AppCurrency
 import com.financetracker.evolva.data.model.Transaction
 import com.financetracker.evolva.data.model.TransactionType
@@ -117,8 +118,14 @@ fun DashboardScreen(viewModel: MainViewModel) {
         }
     }
 
-    val insights = remember(transactions, budgets, recurringRules, currency) {
-        InsightsCalculator.build(transactions, budgets, recurringRules) { v -> formatAmount(v, currency) }
+    val localeContext = LocalContext.current
+    val insights = remember(transactions, budgets, recurringRules, currency, localeContext) {
+        InsightsCalculator.build(
+            localeContext,
+            transactions,
+            budgets,
+            recurringRules
+        ) { v -> formatAmount(v, currency) }
     }
 
     var detailMetric by remember { mutableStateOf<DashboardMetric?>(null) }
@@ -154,7 +161,7 @@ fun DashboardScreen(viewModel: MainViewModel) {
 
         item {
             Text(
-                "${transactions.size} of ${allTransactions.size} transactions in view",
+                stringResource(R.string.transactions_in_view, transactions.size, allTransactions.size),
                 fontSize = 12.sp,
                 color = FinanceColors.TextSoft
             )
@@ -163,16 +170,16 @@ fun DashboardScreen(viewModel: MainViewModel) {
         item {
             ResponsiveStatGrid(
                 entries = listOf(
-                    StatEntry("Income", fmt(totals.income), FinanceColors.Income, DashboardMetric.INCOME),
-                    StatEntry("Expense", fmt(totals.expense), FinanceColors.Expense, DashboardMetric.EXPENSE),
-                    StatEntry("Savings", fmt(totals.savings), FinanceColors.Savings, DashboardMetric.SAVINGS),
+                    StatEntry(stringResource(R.string.label_income), fmt(totals.income), FinanceColors.Income, DashboardMetric.INCOME),
+                    StatEntry(stringResource(R.string.label_expense), fmt(totals.expense), FinanceColors.Expense, DashboardMetric.EXPENSE),
+                    StatEntry(stringResource(R.string.label_savings), fmt(totals.savings), FinanceColors.Savings, DashboardMetric.SAVINGS),
                     StatEntry(
-                        "Transfers (net)",
+                        stringResource(R.string.label_transfers_net),
                         (if (totals.transferNet >= 0) "+" else "") + fmt(totals.transferNet),
                         FinanceColors.Transfer,
                         DashboardMetric.TRANSFER_NET
                     ),
-                    StatEntry("Net Balance", fmt(totals.net), FinanceColors.Text, DashboardMetric.NET)
+                    StatEntry(stringResource(R.string.label_net_balance), fmt(totals.net), FinanceColors.Text, DashboardMetric.NET)
                 ),
                 onCardClick = { detailMetric = it }
             )
@@ -182,15 +189,15 @@ fun DashboardScreen(viewModel: MainViewModel) {
             Column {
                 ResponsiveStatGrid(
                     entries = listOf(
-                        StatEntry("Avg Monthly Income", fmt(averages.income), FinanceColors.Income, DashboardMetric.AVG_INCOME),
-                        StatEntry("Avg Monthly Expense", fmt(averages.expense), FinanceColors.Expense, DashboardMetric.AVG_EXPENSE),
-                        StatEntry("Avg Monthly Savings", fmt(averages.savings), FinanceColors.Savings, DashboardMetric.AVG_SAVINGS)
+                        StatEntry(stringResource(R.string.avg_monthly_income), fmt(averages.income), FinanceColors.Income, DashboardMetric.AVG_INCOME),
+                        StatEntry(stringResource(R.string.avg_monthly_expense), fmt(averages.expense), FinanceColors.Expense, DashboardMetric.AVG_EXPENSE),
+                        StatEntry(stringResource(R.string.avg_monthly_savings), fmt(averages.savings), FinanceColors.Savings, DashboardMetric.AVG_SAVINGS)
                     ),
                     onCardClick = { detailMetric = it }
                 )
                 if (averages.months > 0) {
                     Text(
-                        "Averaged across ${averages.months} month${if (averages.months == 1) "" else "s"} with activity.",
+                        stringResource(R.string.averaged_across_months, averages.months),
                         fontSize = 11.5.sp, color = FinanceColors.TextSoft, modifier = Modifier.padding(top = 6.dp)
                     )
                 }
@@ -198,13 +205,13 @@ fun DashboardScreen(viewModel: MainViewModel) {
         }
 
         item {
-            SectionCard(title = "Expenses by Category") {
+            SectionCard(title = stringResource(R.string.section_expenses_by_category)) {
                 DonutChart(data = expenseByCategory, valueFormatter = { fmt(it) })
             }
         }
 
         item {
-            SectionCard(title = "Income vs Expense (6 mo, dashed = average)") {
+            SectionCard(title = stringResource(R.string.section_income_vs_expense)) {
                 IncomeExpenseBarChart(
                     labels = monthLabels,
                     income = incomeSeries,
@@ -216,13 +223,13 @@ fun DashboardScreen(viewModel: MainViewModel) {
         }
 
         item {
-            SectionCard(title = "Savings Growth") {
+            SectionCard(title = stringResource(R.string.section_savings_growth)) {
                 LineChart(labels = monthLabels, values = savingsTrend, lineColor = FinanceColors.Savings)
             }
         }
 
         item {
-            SectionCard(title = "Insights") {
+            SectionCard(title = stringResource(R.string.section_insights)) {
                 insights.forEach { text ->
                     Row(modifier = Modifier.padding(vertical = 6.dp)) {
                         Text("•  ", color = FinanceColors.Text)
@@ -238,18 +245,18 @@ fun DashboardScreen(viewModel: MainViewModel) {
     detailMetric?.let { metric ->
         val detailTxs = remember(metric, transactions) { transactionsForMetric(metric, transactions) }
         val title = when (metric) {
-            DashboardMetric.INCOME -> "Income details"
-            DashboardMetric.EXPENSE -> "Expense details"
-            DashboardMetric.SAVINGS -> "Savings details"
-            DashboardMetric.TRANSFER_NET -> "Transfer details"
-            DashboardMetric.NET -> "All transactions in period"
-            DashboardMetric.AVG_INCOME -> "Income (for average)"
-            DashboardMetric.AVG_EXPENSE -> "Expense (for average)"
-            DashboardMetric.AVG_SAVINGS -> "Savings (for average)"
+            DashboardMetric.INCOME -> stringResource(R.string.details_income)
+            DashboardMetric.EXPENSE -> stringResource(R.string.details_expense)
+            DashboardMetric.SAVINGS -> stringResource(R.string.details_savings)
+            DashboardMetric.TRANSFER_NET -> stringResource(R.string.details_transfer)
+            DashboardMetric.NET -> stringResource(R.string.details_all_period)
+            DashboardMetric.AVG_INCOME -> stringResource(R.string.details_income_average)
+            DashboardMetric.AVG_EXPENSE -> stringResource(R.string.details_expense_average)
+            DashboardMetric.AVG_SAVINGS -> stringResource(R.string.details_savings_average)
         }
         MetricDetailDialog(
             title = title,
-            subtitle = dateFilter.label(),
+            subtitle = dateFilter.label(stringResource(R.string.date_filter_all_dates)),
             transactions = detailTxs,
             currency = currency,
             onDismiss = { detailMetric = null }
@@ -376,7 +383,7 @@ private fun MetricDetailDialog(
                         IconButton(onClick = onDismiss) {
                             Icon(
                                 imageVector = Icons.Filled.Close,
-                                contentDescription = "Close",
+                                contentDescription = stringResource(R.string.cd_close),
                                 tint = FinanceColors.OnHeader
                             )
                         }
@@ -390,14 +397,18 @@ private fun MetricDetailDialog(
                                 overflow = TextOverflow.Ellipsis
                             )
                             Text(
-                                "Filter: $subtitle",
+                                stringResource(R.string.filter_prefix, subtitle),
                                 fontSize = 12.sp,
                                 color = FinanceColors.OnHeader.copy(alpha = 0.8f),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
                             Text(
-                                "Currency: ${currency.symbol} (${currency.code}) · ${transactions.size} transaction(s)",
+                                stringResource(
+                                    R.string.currency_tx_count,
+                                    "${currency.symbol} (${currency.code})",
+                                    transactions.size
+                                ),
                                 fontSize = 11.sp,
                                 color = FinanceColors.OnHeader.copy(alpha = 0.75f),
                                 modifier = Modifier.padding(top = 2.dp),
@@ -411,7 +422,7 @@ private fun MetricDetailDialog(
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.Share,
-                                contentDescription = "Share all",
+                                contentDescription = stringResource(R.string.cd_share_all),
                                 tint = FinanceColors.OnHeader
                             )
                         }
@@ -428,7 +439,7 @@ private fun MetricDetailDialog(
                             .padding(24.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("No transactions in this period.", color = FinanceColors.TextSoft)
+                        Text(stringResource(R.string.no_transactions_period), color = FinanceColors.TextSoft)
                     }
                 } else {
                     LazyColumn(
@@ -452,22 +463,27 @@ private fun MetricDetailDialog(
     if (showShareOptions) {
         AlertDialog(
             onDismissRequest = { showShareOptions = false },
-            title = { Text("Share or save") },
+            title = { Text(stringResource(R.string.share_or_save)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
-                        "Opens the Android share sheet so you can send to any app.",
+                        stringResource(R.string.share_sheet_help),
                         fontSize = 12.5.sp,
                         color = FinanceColors.TextSoft
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        "Share via",
+                        stringResource(R.string.share_via),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = FinanceColors.Text
                     )
                     DetailShareFormat.entries.forEach { format ->
+                        val formatLabel = when (format) {
+                            DetailShareFormat.TEXT -> stringResource(R.string.format_text)
+                            DetailShareFormat.CSV -> stringResource(R.string.format_csv)
+                            DetailShareFormat.PDF -> stringResource(R.string.format_pdf)
+                        }
                         TextButton(
                             onClick = {
                                 showShareOptions = false
@@ -476,11 +492,11 @@ private fun MetricDetailDialog(
                                 )
                             },
                             modifier = Modifier.fillMaxWidth()
-                        ) { Text("Share ${format.label}") }
+                        ) { Text(stringResource(R.string.share_format, formatLabel)) }
                     }
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        "Save to device",
+                        stringResource(R.string.save_to_device),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = FinanceColors.Text
@@ -491,25 +507,25 @@ private fun MetricDetailDialog(
                             saveTextLauncher.launch(DetailExport.fileName(title, DetailShareFormat.TEXT))
                         },
                         modifier = Modifier.fillMaxWidth()
-                    ) { Text("Save Text") }
+                    ) { Text(stringResource(R.string.save_text)) }
                     TextButton(
                         onClick = {
                             showShareOptions = false
                             saveCsvLauncher.launch(DetailExport.fileName(title, DetailShareFormat.CSV))
                         },
                         modifier = Modifier.fillMaxWidth()
-                    ) { Text("Save CSV") }
+                    ) { Text(stringResource(R.string.save_csv)) }
                     TextButton(
                         onClick = {
                             showShareOptions = false
                             savePdfLauncher.launch(DetailExport.fileName(title, DetailShareFormat.PDF))
                         },
                         modifier = Modifier.fillMaxWidth()
-                    ) { Text("Save PDF") }
+                    ) { Text(stringResource(R.string.save_pdf)) }
                 }
             },
             confirmButton = {
-                TextButton(onClick = { showShareOptions = false }) { Text("Cancel") }
+                TextButton(onClick = { showShareOptions = false }) { Text(stringResource(R.string.action_cancel)) }
             }
         )
     }
@@ -521,6 +537,7 @@ private fun CompactDetailRow(
     currency: AppCurrency,
     bandColor: Color
 ) {
+    val context = LocalContext.current
     val sign = when {
         tx.type == TransactionType.EXPENSE -> "-"
         tx.type == TransactionType.TRANSFER && tx.direction == TransferDirection.OUT -> "-"
@@ -539,7 +556,7 @@ private fun CompactDetailRow(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "${tx.formatRecordedAt()} · ${tx.category}",
+                text = "${tx.formatRecordedAt()} · ${CategoryLabels.display(context, tx.category)}",
                 fontSize = 13.sp,
                 color = FinanceColors.Text,
                 maxLines = 1,

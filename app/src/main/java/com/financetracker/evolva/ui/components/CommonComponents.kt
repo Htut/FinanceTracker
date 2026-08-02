@@ -31,9 +31,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.financetracker.evolva.R
+import com.financetracker.evolva.data.locale.CategoryLabels
 import com.financetracker.evolva.data.model.Transaction
 import com.financetracker.evolva.data.model.TransactionType
 import com.financetracker.evolva.data.model.TransferDirection
@@ -60,7 +64,7 @@ fun StatCard(
             Text(value, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = valueColor)
             if (onClick != null) {
                 Spacer(modifier = Modifier.height(4.dp))
-                Text("Tap for details", fontSize = 10.5.sp, color = FinanceColors.TextSoft)
+                Text(stringResource(R.string.tap_for_details), fontSize = 10.5.sp, color = FinanceColors.TextSoft)
             }
         }
     }
@@ -130,6 +134,12 @@ fun typeColor(type: TransactionType): Color = when (type) {
 @Composable
 fun TypeTag(type: TransactionType, modifier: Modifier = Modifier) {
     val color = typeColor(type)
+    val label = when (type) {
+        TransactionType.INCOME -> stringResource(R.string.label_income)
+        TransactionType.EXPENSE -> stringResource(R.string.label_expense)
+        TransactionType.SAVINGS -> stringResource(R.string.label_savings)
+        TransactionType.TRANSFER -> stringResource(R.string.label_transfer)
+    }
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(100.dp))
@@ -137,7 +147,7 @@ fun TypeTag(type: TransactionType, modifier: Modifier = Modifier) {
             .padding(horizontal = 8.dp, vertical = 2.dp)
     ) {
         Text(
-            type.name.lowercase().replaceFirstChar { it.uppercase() },
+            label,
             fontSize = 11.5.sp,
             fontWeight = FontWeight.Medium,
             color = color
@@ -153,16 +163,18 @@ fun TransactionRow(
     onDelete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val color = typeColor(transaction.type)
     val sign = when {
         transaction.type == TransactionType.EXPENSE -> "-"
         transaction.type == TransactionType.TRANSFER && transaction.direction == TransferDirection.OUT -> "-"
         else -> "+"
     }
+    val categoryDisplay = CategoryLabels.display(context, transaction.category)
     val categoryLabel = if (transaction.type == TransactionType.TRANSFER) {
         val arrow = if (transaction.direction == TransferDirection.OUT) "↗" else "↙"
-        "$arrow ${transaction.category}"
-    } else transaction.category
+        "$arrow $categoryDisplay"
+    } else categoryDisplay
 
     Row(
         modifier = modifier
@@ -171,20 +183,22 @@ fun TransactionRow(
             .padding(vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(Modifier.weight(1f)) {
+        Column(modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(transaction.formatRecordedAt(), fontSize = 12.sp, color = FinanceColors.TextSoft)
                 if (transaction.recurringId != null) {
-                    Spacer(Modifier.width(4.dp))
+                    Spacer(modifier.width(4.dp))
                     Icon(
-                        Icons.Filled.Repeat, contentDescription = "Recurring",
-                        tint = FinanceColors.TextSoft, modifier = Modifier.size(12.dp)
+                        Icons.Filled.Repeat,
+                        contentDescription = stringResource(R.string.cd_recurring),
+                        tint = FinanceColors.TextSoft,
+                        modifier = Modifier.size(12.dp)
                     )
                 }
             }
-            Spacer(Modifier.height(3.dp))
+            Spacer(modifier.height(3.dp))
             TypeTag(transaction.type)
-            Spacer(Modifier.height(3.dp))
+            Spacer(modifier.height(3.dp))
             Text(categoryLabel, fontSize = 13.5.sp, color = FinanceColors.Text)
             if (!transaction.note.isNullOrBlank()) {
                 Text(transaction.note, fontSize = 12.sp, color = FinanceColors.TextSoft)
@@ -197,10 +211,20 @@ fun TransactionRow(
             color = color
         )
         IconButton(onClick = onClick) {
-            Icon(Icons.Filled.Edit, contentDescription = "Edit", tint = FinanceColors.TextSoft, modifier = Modifier.size(18.dp))
+            Icon(
+                Icons.Filled.Edit,
+                contentDescription = stringResource(R.string.action_edit),
+                tint = FinanceColors.TextSoft,
+                modifier = Modifier.size(18.dp)
+            )
         }
         IconButton(onClick = onDelete) {
-            Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = FinanceColors.Expense, modifier = Modifier.size(18.dp))
+            Icon(
+                Icons.Filled.Delete,
+                contentDescription = stringResource(R.string.action_delete),
+                tint = FinanceColors.Expense,
+                modifier = Modifier.size(18.dp)
+            )
         }
     }
 }

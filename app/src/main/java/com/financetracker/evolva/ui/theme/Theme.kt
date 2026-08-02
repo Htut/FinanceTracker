@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import com.financetracker.evolva.R
 
 data class AppColorPalette(
     val background: Color,
@@ -34,13 +35,13 @@ data class AppColorPalette(
     val categoryPalette: List<Color>
 )
 
-enum class AppThemeOption(val id: String, val label: String, val subtitle: String) {
-    CLASSIC("classic", "Classic", "Clean light ledger"),
-    FOREST("forest", "Forest", "Growth green & navy"),
-    OCEAN("ocean", "Ocean", "Cool coastal blues"),
-    MIDNIGHT("midnight", "Midnight", "Dark focused night"),
-    AMBER("amber", "Amber", "Warm paper & gold"),
-    SLATE("slate", "Slate", "Soft graphite tones");
+enum class AppThemeOption(val id: String, val labelRes: Int, val subtitleRes: Int) {
+    CLASSIC("classic", R.string.theme_classic, R.string.theme_classic_sub),
+    FOREST("forest", R.string.theme_forest, R.string.theme_forest_sub),
+    OCEAN("ocean", R.string.theme_ocean, R.string.theme_ocean_sub),
+    MIDNIGHT("midnight", R.string.theme_midnight, R.string.theme_midnight_sub),
+    AMBER("amber", R.string.theme_amber, R.string.theme_amber_sub),
+    SLATE("slate", R.string.theme_slate, R.string.theme_slate_sub);
 
     companion object {
         fun fromId(id: String?): AppThemeOption =

@@ -38,10 +38,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.financetracker.evolva.R
 import com.financetracker.evolva.data.model.DateFilter
 import com.financetracker.evolva.ui.theme.FinanceColors
 import java.time.Instant
@@ -100,9 +102,9 @@ fun DateFilterBar(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text("Date filter", fontSize = 12.sp, color = FinanceColors.TextSoft)
+                Text(stringResource(R.string.date_filter), fontSize = 12.sp, color = FinanceColors.TextSoft)
                 Text(
-                    filter.label(),
+                    filter.label(stringResource(R.string.date_filter_all_dates)),
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
                     color = FinanceColors.Text
@@ -110,7 +112,7 @@ fun DateFilterBar(
             }
             if (expanded && autoCloseSeconds > 0) {
                 Text(
-                    "Auto-hide ${secondsLeft}s",
+                    stringResource(R.string.auto_hide_seconds, secondsLeft),
                     fontSize = 11.sp,
                     color = FinanceColors.TextSoft,
                     modifier = Modifier.padding(end = 8.dp)
@@ -118,7 +120,9 @@ fun DateFilterBar(
             }
             Icon(
                 imageVector = if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
-                contentDescription = if (expanded) "Collapse filter" else "Expand filter",
+                contentDescription = stringResource(
+                    if (expanded) R.string.cd_collapse_filter else R.string.cd_expand_filter
+                ),
                 tint = FinanceColors.TextSoft
             )
         }
@@ -135,7 +139,7 @@ fun DateFilterBar(
                         resetAutoHide()
                         onFilterChange(DateFilter.All)
                     },
-                    label = { Text("All") }
+                    label = { Text(stringResource(R.string.date_filter_all)) }
                 )
                 FilterChip(
                     selected = filter is DateFilter.Month,
@@ -143,7 +147,15 @@ fun DateFilterBar(
                         resetAutoHide()
                         showMonthPicker = true
                     },
-                    label = { Text(if (filter is DateFilter.Month) filter.label() else "Monthly") }
+                    label = {
+                        Text(
+                            if (filter is DateFilter.Month) {
+                                filter.label(stringResource(R.string.date_filter_all_dates))
+                            } else {
+                                stringResource(R.string.date_filter_monthly)
+                            }
+                        )
+                    }
                 )
                 FilterChip(
                     selected = filter is DateFilter.Year,
@@ -151,7 +163,15 @@ fun DateFilterBar(
                         resetAutoHide()
                         showYearPicker = true
                     },
-                    label = { Text(if (filter is DateFilter.Year) filter.label() else "Yearly") }
+                    label = {
+                        Text(
+                            if (filter is DateFilter.Year) {
+                                filter.label(stringResource(R.string.date_filter_all_dates))
+                            } else {
+                                stringResource(R.string.date_filter_yearly)
+                            }
+                        )
+                    }
                 )
                 FilterChip(
                     selected = filter is DateFilter.Range,
@@ -159,7 +179,14 @@ fun DateFilterBar(
                         resetAutoHide()
                         showRangePicker = true
                     },
-                    label = { Text(if (filter is DateFilter.Range) "Range" else "Date range") }
+                    label = {
+                        Text(
+                            stringResource(
+                                if (filter is DateFilter.Range) R.string.date_filter_range
+                                else R.string.date_filter_date_range
+                            )
+                        )
+                    }
                 )
             }
         }
@@ -219,21 +246,21 @@ private fun MonthWheelPickerDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Select month") },
+        title = { Text(stringResource(R.string.select_month)) },
         text = {
             Row(
                 modifier = Modifier.fillMaxWidth().height(220.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 ScrollSelectColumn(
-                    title = "Month",
+                    title = stringResource(R.string.month_label),
                     items = monthLabels,
                     selectedIndex = selectedMonth - 1,
                     onSelected = { selectedMonth = it + 1 },
                     modifier = Modifier.weight(1.2f)
                 )
                 ScrollSelectColumn(
-                    title = "Year",
+                    title = stringResource(R.string.year_label),
                     items = years.map { it.toString() },
                     selectedIndex = years.indexOf(selectedYear).coerceAtLeast(0),
                     onSelected = { selectedYear = years[it] },
@@ -243,10 +270,12 @@ private fun MonthWheelPickerDialog(
         },
         confirmButton = {
             TextButton(onClick = { onConfirm(YearMonth.of(selectedYear, selectedMonth)) }) {
-                Text("Apply")
+                Text(stringResource(R.string.action_apply))
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
+        }
     )
 }
 
@@ -261,11 +290,11 @@ private fun YearWheelPickerDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Select year") },
+        title = { Text(stringResource(R.string.select_year)) },
         text = {
             Box(modifier = Modifier.fillMaxWidth().height(220.dp)) {
                 ScrollSelectColumn(
-                    title = "Year",
+                    title = stringResource(R.string.year_label),
                     items = years.map { it.toString() },
                     selectedIndex = years.indexOf(selectedYear).coerceAtLeast(0),
                     onSelected = { selectedYear = years[it] },
@@ -274,9 +303,13 @@ private fun YearWheelPickerDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(selectedYear) }) { Text("Apply") }
+            TextButton(onClick = { onConfirm(selectedYear) }) {
+                Text(stringResource(R.string.action_apply))
+            }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
+        }
     )
 }
 
@@ -337,32 +370,40 @@ private fun RangePickerDialog(
     var end by remember { mutableStateOf(initial?.end ?: LocalDate.now()) }
     var pickingStart by remember { mutableStateOf(true) }
     var showPicker by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
+    var showError by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Date range") },
+        title = { Text(stringResource(R.string.date_filter_date_range)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 TextButton(onClick = { pickingStart = true; showPicker = true }) {
-                    Text("Start: $start")
+                    Text(stringResource(R.string.start_date, start.toString()))
                 }
                 TextButton(onClick = { pickingStart = false; showPicker = true }) {
-                    Text("End: $end")
+                    Text(stringResource(R.string.end_date, end.toString()))
                 }
-                error?.let { Text(it, color = FinanceColors.Expense, fontSize = 12.sp) }
+                if (showError) {
+                    Text(
+                        stringResource(R.string.end_before_start_error),
+                        color = FinanceColors.Expense,
+                        fontSize = 12.sp
+                    )
+                }
             }
         },
         confirmButton = {
             TextButton(onClick = {
                 if (end.isBefore(start)) {
-                    error = "End date must be on or after start date."
+                    showError = true
                     return@TextButton
                 }
                 onConfirm(start, end)
-            }) { Text("Apply") }
+            }) { Text(stringResource(R.string.action_apply)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
+        }
     )
 
     if (showPicker) {
@@ -379,9 +420,13 @@ private fun RangePickerDialog(
                         if (pickingStart) start = picked else end = picked
                     }
                     showPicker = false
-                }) { Text("OK") }
+                }) { Text(stringResource(R.string.action_ok)) }
             },
-            dismissButton = { TextButton(onClick = { showPicker = false }) { Text("Cancel") } }
+            dismissButton = {
+                TextButton(onClick = { showPicker = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            }
         ) {
             DatePicker(state = pickerState)
         }

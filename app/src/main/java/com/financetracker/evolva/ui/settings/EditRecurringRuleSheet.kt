@@ -29,10 +29,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.financetracker.evolva.R
 import com.financetracker.evolva.data.model.Categories
 import com.financetracker.evolva.data.model.RecurringRule
 import com.financetracker.evolva.data.model.TransactionType
@@ -77,39 +79,45 @@ fun EditRecurringRuleSheet(
                 .verticalScroll(rememberScrollState())
         ) {
             Text(
-                "Edit recurring rule",
+                stringResource(R.string.edit_recurring_rule),
                 fontSize = 18.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = FinanceColors.Text
             )
             Spacer(modifier = Modifier.height(16.dp))
 
-            Text("Type", fontSize = 12.sp, color = FinanceColors.TextSoft)
+            Text(stringResource(R.string.label_type), fontSize = 12.sp, color = FinanceColors.TextSoft)
             Spacer(modifier = Modifier.height(6.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TransactionType.entries.forEach { t ->
+                    val typeLabel = when (t) {
+                        TransactionType.INCOME -> stringResource(R.string.label_income)
+                        TransactionType.EXPENSE -> stringResource(R.string.label_expense)
+                        TransactionType.SAVINGS -> stringResource(R.string.label_savings)
+                        TransactionType.TRANSFER -> stringResource(R.string.label_transfer)
+                    }
                     FilterChip(
                         selected = type == t,
                         onClick = { type = t },
-                        label = { Text(t.name.lowercase().replaceFirstChar { c -> c.uppercase() }) }
+                        label = { Text(typeLabel) }
                     )
                 }
             }
 
             if (type == TransactionType.TRANSFER) {
                 Spacer(modifier = Modifier.height(14.dp))
-                Text("Direction", fontSize = 12.sp, color = FinanceColors.TextSoft)
+                Text(stringResource(R.string.label_direction), fontSize = 12.sp, color = FinanceColors.TextSoft)
                 Spacer(modifier = Modifier.height(6.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(
                         selected = direction == TransferDirection.OUT,
                         onClick = { direction = TransferDirection.OUT },
-                        label = { Text("Sent") }
+                        label = { Text(stringResource(R.string.direction_sent)) }
                     )
                     FilterChip(
                         selected = direction == TransferDirection.IN,
                         onClick = { direction = TransferDirection.IN },
-                        label = { Text("Received") }
+                        label = { Text(stringResource(R.string.direction_received)) }
                     )
                 }
             }
@@ -123,7 +131,12 @@ fun EditRecurringRuleSheet(
                     value = category,
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text(if (type == TransactionType.TRANSFER) "Relation" else "Category") },
+                    label = {
+                        Text(
+                            if (type == TransactionType.TRANSFER) stringResource(R.string.label_relation)
+                            else stringResource(R.string.label_category)
+                        )
+                    },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryMenuExpanded) },
                     modifier = Modifier
                         .menuAnchor(MenuAnchorType.PrimaryNotEditable)
@@ -146,7 +159,7 @@ fun EditRecurringRuleSheet(
             OutlinedTextField(
                 value = amountText,
                 onValueChange = { amountText = it.filter { ch -> ch.isDigit() || ch == '.' } },
-                label = { Text("Amount") },
+                label = { Text(stringResource(R.string.label_amount)) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 modifier = Modifier.fillMaxWidth()
             )
@@ -157,10 +170,10 @@ fun EditRecurringRuleSheet(
                 onExpandedChange = { dayMenuExpanded = it }
             ) {
                 OutlinedTextField(
-                    value = "Day $day",
+                    value = stringResource(R.string.day_n, day),
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("Day of month") },
+                    label = { Text(stringResource(R.string.day_of_month)) },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = dayMenuExpanded) },
                     modifier = Modifier
                         .menuAnchor(MenuAnchorType.PrimaryNotEditable)
@@ -171,10 +184,13 @@ fun EditRecurringRuleSheet(
                     onDismissRequest = { dayMenuExpanded = false }
                 ) {
                     (1..28).forEach { d ->
-                        DropdownMenuItem(text = { Text("Day $d") }, onClick = {
-                            day = d
-                            dayMenuExpanded = false
-                        })
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.day_n, d)) },
+                            onClick = {
+                                day = d
+                                dayMenuExpanded = false
+                            }
+                        )
                     }
                 }
             }
@@ -183,7 +199,7 @@ fun EditRecurringRuleSheet(
             OutlinedTextField(
                 value = note,
                 onValueChange = { note = it },
-                label = { Text("Note (optional)") },
+                label = { Text(stringResource(R.string.label_note)) },
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -204,15 +220,15 @@ fun EditRecurringRuleSheet(
                 },
                 enabled = amountValid,
                 modifier = Modifier.fillMaxWidth()
-            ) { Text("Save changes") }
+            ) { Text(stringResource(R.string.save_changes)) }
 
             TextButton(
                 onClick = onDelete,
                 modifier = Modifier.fillMaxWidth()
-            ) { Text("Delete rule", color = FinanceColors.Expense) }
+            ) { Text(stringResource(R.string.delete_rule), color = FinanceColors.Expense) }
 
             TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
-                Text("Cancel")
+                Text(stringResource(R.string.action_cancel))
             }
         }
     }

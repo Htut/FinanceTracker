@@ -41,10 +41,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.financetracker.evolva.R
+import com.financetracker.evolva.data.locale.CategoryLabels
 import com.financetracker.evolva.data.model.Categories
 import com.financetracker.evolva.data.model.Transaction
 import com.financetracker.evolva.data.model.TransactionQuery
@@ -77,8 +80,8 @@ fun TransactionsScreen(viewModel: MainViewModel) {
     LaunchedEffect(undoAction) {
         if (undoAction is UndoAction.DeleteTransaction) {
             val result = snackbarHostState.showSnackbar(
-                message = "Transaction deleted",
-                actionLabel = "Undo"
+                message = context.getString(R.string.transaction_deleted),
+                actionLabel = context.getString(R.string.action_undo)
             )
             if (result == SnackbarResult.ActionPerformed) viewModel.undoLastAction()
             else viewModel.dismissUndo()
@@ -138,7 +141,7 @@ fun TransactionsScreen(viewModel: MainViewModel) {
                 isNew = true
                 showSheet = true
             }) {
-                Icon(Icons.Filled.Add, contentDescription = "Add transaction")
+                Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.add_transaction))
             }
         }
     ) { padding ->
@@ -157,12 +160,12 @@ fun TransactionsScreen(viewModel: MainViewModel) {
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp),
                 singleLine = true,
-                label = { Text("Search note, category…") },
+                label = { Text(stringResource(R.string.search_hint)) },
                 leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                 trailingIcon = {
                     if (search.isNotEmpty()) {
                         IconButton(onClick = { search = "" }) {
-                            Icon(Icons.Filled.Clear, contentDescription = "Clear search")
+                            Icon(Icons.Filled.Clear, contentDescription = stringResource(R.string.cd_clear_search))
                         }
                     }
                 }
@@ -178,7 +181,7 @@ fun TransactionsScreen(viewModel: MainViewModel) {
                 FilterChip(
                     selected = typeFilter == null,
                     onClick = { typeFilter = null; categoryFilter = null },
-                    label = { Text("All types") }
+                    label = { Text(stringResource(R.string.all_types)) }
                 )
                 TransactionType.entries.forEach { t ->
                     FilterChip(
@@ -188,7 +191,7 @@ fun TransactionsScreen(viewModel: MainViewModel) {
                             categoryFilter = null
                         },
                         label = {
-                            Text(t.name.lowercase().replaceFirstChar { c -> c.uppercase() })
+                            Text(CategoryLabels.typeLabel(context, t))
                         }
                     )
                 }
@@ -198,7 +201,11 @@ fun TransactionsScreen(viewModel: MainViewModel) {
                 onClick = { showAdvanced = !showAdvanced },
                 modifier = Modifier.padding(horizontal = 8.dp)
             ) {
-                Text(if (showAdvanced) "Hide amount & category filters" else "Amount & category filters")
+                Text(
+                    stringResource(
+                        if (showAdvanced) R.string.hide_advanced_filters else R.string.show_advanced_filters
+                    )
+                )
             }
 
             if (showAdvanced) {
@@ -212,13 +219,13 @@ fun TransactionsScreen(viewModel: MainViewModel) {
                     FilterChip(
                         selected = categoryFilter == null,
                         onClick = { categoryFilter = null },
-                        label = { Text("All categories") }
+                        label = { Text(stringResource(R.string.all_categories)) }
                     )
                     categoryOptions.forEach { c ->
                         FilterChip(
                             selected = categoryFilter == c,
                             onClick = { categoryFilter = if (categoryFilter == c) null else c },
-                            label = { Text(c) }
+                            label = { Text(CategoryLabels.display(context, c)) }
                         )
                     }
                 }
@@ -231,7 +238,7 @@ fun TransactionsScreen(viewModel: MainViewModel) {
                     OutlinedTextField(
                         value = minAmountText,
                         onValueChange = { minAmountText = it.filter { ch -> ch.isDigit() || ch == '.' } },
-                        label = { Text("Min amount") },
+                        label = { Text(stringResource(R.string.min_amount)) },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         modifier = Modifier.weight(1f)
@@ -239,7 +246,7 @@ fun TransactionsScreen(viewModel: MainViewModel) {
                     OutlinedTextField(
                         value = maxAmountText,
                         onValueChange = { maxAmountText = it.filter { ch -> ch.isDigit() || ch == '.' } },
-                        label = { Text("Max amount") },
+                        label = { Text(stringResource(R.string.max_amount)) },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         modifier = Modifier.weight(1f)
@@ -257,11 +264,11 @@ fun TransactionsScreen(viewModel: MainViewModel) {
                         maxAmountText = ""
                     },
                     modifier = Modifier.padding(horizontal = 8.dp)
-                ) { Text("Clear filters") }
+                ) { Text(stringResource(R.string.clear_filters)) }
             }
 
             Text(
-                "${sorted.size} of ${allCount.size} transactions",
+                stringResource(R.string.transactions_count_of, sorted.size, allCount.size),
                 fontSize = 12.sp,
                 color = FinanceColors.TextSoft,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
@@ -273,11 +280,10 @@ fun TransactionsScreen(viewModel: MainViewModel) {
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        if (transactions.isEmpty()) {
-                            "No transactions in this date filter. Tap + to add one, or set up a sample profile in Settings → Data."
-                        } else {
-                            "No transactions match your search/filters."
-                        },
+                        stringResource(
+                            if (transactions.isEmpty()) R.string.no_transactions_filter
+                            else R.string.no_transactions_match
+                        ),
                         color = FinanceColors.TextSoft,
                         fontSize = 13.5.sp,
                         textAlign = TextAlign.Center

@@ -19,6 +19,7 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import com.financetracker.evolva.FinanceApp
+import com.financetracker.evolva.R
 import com.financetracker.evolva.data.calc.FinanceCalculator
 import com.financetracker.evolva.data.model.formatAmount
 import kotlinx.coroutines.flow.first
@@ -37,6 +38,9 @@ class BudgetGlanceWidget : GlanceAppWidget() {
             month
         )
         val remaining = FinanceCalculator.totalBudgetRemaining(transactions, budgets, month)
+        val appName = context.getString(R.string.app_name)
+        val spentLabel = context.getString(R.string.widget_month_spend)
+        val remainingLabel = context.getString(R.string.widget_budget_remaining)
 
         provideContent {
             Column(
@@ -51,7 +55,7 @@ class BudgetGlanceWidget : GlanceAppWidget() {
                     .padding(16.dp)
             ) {
                 Text(
-                    text = "Finance Tracker",
+                    text = appName,
                     style = TextStyle(
                         color = ColorProvider(
                             day = Color(0xFF0F172A),
@@ -62,7 +66,7 @@ class BudgetGlanceWidget : GlanceAppWidget() {
                 )
                 Spacer(GlanceModifier.height(12.dp))
                 Text(
-                    text = "This month spent",
+                    text = spentLabel,
                     style = TextStyle(
                         color = ColorProvider(
                             day = Color(0xFF64748B),
@@ -82,7 +86,7 @@ class BudgetGlanceWidget : GlanceAppWidget() {
                 )
                 Spacer(GlanceModifier.height(8.dp))
                 Text(
-                    text = "Budget remaining",
+                    text = remainingLabel,
                     style = TextStyle(
                         color = ColorProvider(
                             day = Color(0xFF64748B),

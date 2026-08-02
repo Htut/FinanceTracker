@@ -233,38 +233,38 @@ val PROFESSIONAL_LONG_LIMITS: Map<String, Double> = mapOf(
 
 data class AppTemplate(
     val id: String,
-    val label: String,
-    val description: String,
+    val labelRes: Int,
+    val descriptionRes: Int,
     val budgets: Map<String, Double>? = null,
     val generate: () -> List<Transaction>
 )
 
-// Add more templates here later — each just needs an id, label, description,
+// Add more templates here later — each just needs an id, labelRes, descriptionRes,
 // optional starter budgets, and a generate() that calls buildProfileTransactions().
 val TEMPLATES: List<AppTemplate> = listOf(
     AppTemplate(
         id = "student",
-        label = "Student expenses",
-        description = "6 months of typical student income, spending, and savings — 20+ transactions per month.",
+        labelRes = com.financetracker.evolva.R.string.tpl_student_label,
+        descriptionRes = com.financetracker.evolva.R.string.tpl_student_desc,
         generate = { buildProfileTransactions(STUDENT_PROFILE, monthsBack(6)) }
     ),
     AppTemplate(
         id = "staff",
-        label = "Working professional",
-        description = "6 months of a typical salaried employee's income, bills, and savings — 20+ transactions per month.",
+        labelRes = com.financetracker.evolva.R.string.tpl_staff_label,
+        descriptionRes = com.financetracker.evolva.R.string.tpl_staff_desc,
         generate = { buildProfileTransactions(STAFF_PROFILE, monthsBack(6)) }
     ),
     AppTemplate(
         id = "budget2026",
-        label = "Budget example (Jan–Jul 2026)",
-        description = "Regular income and everyday expenses dated Jan–Jul 2026, with example category budget limits included.",
+        labelRes = com.financetracker.evolva.R.string.tpl_budget2026_label,
+        descriptionRes = com.financetracker.evolva.R.string.tpl_budget2026_desc,
         budgets = BUDGET_EXAMPLE_LIMITS,
         generate = { buildProfileTransactions(BUDGET_EXAMPLE_PROFILE, fixedMonths(2026, 1, 7)) }
     ),
     AppTemplate(
         id = "professional_2025_2026",
-        label = "Professional (Jan 2025–Jul 2026)",
-        description = "19 months of salaried professional income, bills, and expenses from January 2025 through July 2026, with starter budget limits.",
+        labelRes = com.financetracker.evolva.R.string.tpl_pro_label,
+        descriptionRes = com.financetracker.evolva.R.string.tpl_pro_desc,
         budgets = PROFESSIONAL_LONG_LIMITS,
         generate = {
             buildProfileTransactions(

@@ -155,10 +155,12 @@ fun AppNavGraph(viewModel: MainViewModel) {
     infoMessage?.let { message ->
         AlertDialog(
             onDismissRequest = viewModel::dismissInfoMessage,
-            title = { Text("Notice") },
+            title = { Text(stringResource(R.string.notice_title)) },
             text = { Text(message) },
             confirmButton = {
-                TextButton(onClick = viewModel::dismissInfoMessage) { Text("OK") }
+                TextButton(onClick = viewModel::dismissInfoMessage) {
+                    Text(stringResource(R.string.action_ok))
+                }
             }
         )
     }

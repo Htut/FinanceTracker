@@ -24,8 +24,12 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.financetracker.evolva.R
+import com.financetracker.evolva.data.locale.CategoryLabels
 import com.financetracker.evolva.ui.theme.FinanceColors
 
 /**
@@ -43,10 +47,11 @@ fun DonutChart(
     valueFormatter: (Double) -> String = { it.toString() }
 ) {
     val total = data.sumOf { it.second }
+    val context = LocalContext.current
     Column(modifier) {
         if (data.isEmpty() || total <= 0.0) {
             Box(Modifier.fillMaxWidth().height(160.dp), contentAlignment = Alignment.Center) {
-                Text("No expense data yet", color = FinanceColors.TextSoft, fontSize = 13.sp)
+                Text(stringResource(R.string.no_expense_data_yet), color = FinanceColors.TextSoft, fontSize = 13.sp)
             }
             return@Column
         }
@@ -82,7 +87,12 @@ fun DonutChart(
                 ) {
                     Dot(colors[index % colors.size])
                     Spacer(Modifier.width(8.dp))
-                    Text(label, fontSize = 12.sp, color = FinanceColors.Text, modifier = Modifier.weight(1f))
+                    Text(
+                        CategoryLabels.display(context, label),
+                        fontSize = 12.sp,
+                        color = FinanceColors.Text,
+                        modifier = Modifier.weight(1f)
+                    )
                     Text(valueFormatter(value), fontSize = 12.sp, color = FinanceColors.TextSoft)
                 }
             }
@@ -177,7 +187,7 @@ fun LineChart(
 ) {
     if (values.isEmpty()) {
         Box(modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
-            Text("Not enough data yet", color = FinanceColors.TextSoft, fontSize = 13.sp)
+            Text(stringResource(R.string.not_enough_data_yet), color = FinanceColors.TextSoft, fontSize = 13.sp)
         }
         return
     }

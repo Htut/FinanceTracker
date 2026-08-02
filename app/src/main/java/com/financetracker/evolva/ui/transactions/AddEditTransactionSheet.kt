@@ -47,10 +47,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.financetracker.evolva.R
+import com.financetracker.evolva.data.locale.CategoryLabels
 import com.financetracker.evolva.data.model.Categories
 import com.financetracker.evolva.data.model.Account
 import com.financetracker.evolva.data.model.AppCurrency
@@ -149,37 +152,37 @@ fun AddEditTransactionSheet(
                 .verticalScroll(rememberScrollState())
         ) {
             Text(
-                if (existing == null) "Add Transaction" else "Edit Transaction",
+                stringResource(if (existing == null) R.string.add_transaction_title else R.string.edit_transaction),
                 fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = FinanceColors.Text
             )
             Spacer(Modifier.height(16.dp))
 
-            Text("Type", fontSize = 12.sp, color = FinanceColors.TextSoft)
+            Text(stringResource(R.string.label_type), fontSize = 12.sp, color = FinanceColors.TextSoft)
             Spacer(Modifier.height(6.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TransactionType.entries.forEach { t ->
                     FilterChip(
                         selected = type == t,
                         onClick = { type = t },
-                        label = { Text(t.name.lowercase().replaceFirstChar { c -> c.uppercase() }) }
+                        label = { Text(CategoryLabels.typeLabel(context, t)) }
                     )
                 }
             }
 
             if (type == TransactionType.TRANSFER) {
                 Spacer(Modifier.height(14.dp))
-                Text("Direction", fontSize = 12.sp, color = FinanceColors.TextSoft)
+                Text(stringResource(R.string.label_direction), fontSize = 12.sp, color = FinanceColors.TextSoft)
                 Spacer(Modifier.height(6.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(
                         selected = direction == TransferDirection.OUT,
                         onClick = { direction = TransferDirection.OUT },
-                        label = { Text("Sent") }
+                        label = { Text(stringResource(R.string.direction_sent)) }
                     )
                     FilterChip(
                         selected = direction == TransferDirection.IN,
                         onClick = { direction = TransferDirection.IN },
-                        label = { Text("Received") }
+                        label = { Text(stringResource(R.string.direction_received)) }
                     )
                 }
             }
@@ -191,10 +194,10 @@ fun AddEditTransactionSheet(
             ) {
                 val selectedAccount = accounts.find { it.id == accountId }
                 OutlinedTextField(
-                    value = selectedAccount?.name ?: "Unspecified",
+                    value = selectedAccount?.name ?: stringResource(R.string.label_unspecified),
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("Account") },
+                    label = { Text(stringResource(R.string.label_account)) },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(accountMenuExpanded) },
                     modifier = Modifier
                         .menuAnchor(MenuAnchorType.PrimaryNotEditable)
@@ -222,10 +225,17 @@ fun AddEditTransactionSheet(
                 onExpandedChange = { categoryMenuExpanded = it }
             ) {
                 OutlinedTextField(
-                    value = category,
+                    value = CategoryLabels.display(context, category),
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text(if (type == TransactionType.TRANSFER) "Relation" else "Category") },
+                    label = {
+                        Text(
+                            stringResource(
+                                if (type == TransactionType.TRANSFER) R.string.label_relation
+                                else R.string.label_category
+                            )
+                        )
+                    },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryMenuExpanded) },
                     modifier = Modifier
                         .menuAnchor(MenuAnchorType.PrimaryNotEditable)
@@ -236,14 +246,14 @@ fun AddEditTransactionSheet(
                     onDismissRequest = { categoryMenuExpanded = false }
                 ) {
                     categories.forEach { c ->
-                        DropdownMenuItem(text = { Text(c) }, onClick = {
+                        DropdownMenuItem(text = { Text(CategoryLabels.display(context, c)) }, onClick = {
                             category = c
                             categoryMenuExpanded = false
                         })
                     }
                     if (type == TransactionType.EXPENSE && onAddExpenseCategory != null) {
                         DropdownMenuItem(
-                            text = { Text("Add expense type…") },
+                            text = { Text(stringResource(R.string.add_expense_type)) },
                             onClick = {
                                 categoryMenuExpanded = false
                                 newExpenseTypeText = ""
@@ -258,13 +268,13 @@ fun AddEditTransactionSheet(
             OutlinedTextField(
                 value = amountText,
                 onValueChange = { input -> amountText = input.filter { it.isDigit() || it == '.' } },
-                label = { Text("Amount") },
+                label = { Text(stringResource(R.string.label_amount)) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 modifier = Modifier.fillMaxWidth()
             )
 
             Spacer(Modifier.height(14.dp))
-            Text("Currency", fontSize = 12.sp, color = FinanceColors.TextSoft)
+            Text(stringResource(R.string.label_currency), fontSize = 12.sp, color = FinanceColors.TextSoft)
             Spacer(Modifier.height(6.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 (listOf(homeCurrency) + AppCurrency.entries.filter { it != homeCurrency }).forEach { currency ->
@@ -286,7 +296,15 @@ fun AddEditTransactionSheet(
                     onValueChange = { input ->
                         rateText = input.filter { it.isDigit() || it == '.' }
                     },
-                    label = { Text("1 ${selectedCurrency.code} in ${homeCurrency.code}") },
+                    label = {
+                        Text(
+                            stringResource(
+                                R.string.rate_one_in_home,
+                                selectedCurrency.code,
+                                homeCurrency.code
+                            )
+                        )
+                    },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
@@ -298,10 +316,10 @@ fun AddEditTransactionSheet(
                 value = date.format(DateTimeFormatter.ISO_LOCAL_DATE),
                 onValueChange = {},
                 readOnly = true,
-                label = { Text("Date") },
+                label = { Text(stringResource(R.string.label_date)) },
                 trailingIcon = {
                     IconButton(onClick = { showDatePicker = true }) {
-                        Icon(Icons.Filled.CalendarMonth, contentDescription = "Pick date")
+                        Icon(Icons.Filled.CalendarMonth, contentDescription = stringResource(R.string.cd_pick_date))
                     }
                 },
                 modifier = Modifier
@@ -312,7 +330,7 @@ fun AddEditTransactionSheet(
             Spacer(Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Checkbox(checked = includeTime, onCheckedChange = { includeTime = it })
-                Text("Include time", fontSize = 13.sp, color = FinanceColors.Text)
+                Text(stringResource(R.string.include_time), fontSize = 13.sp, color = FinanceColors.Text)
             }
             if (includeTime) {
                 Spacer(Modifier.height(6.dp))
@@ -320,10 +338,10 @@ fun AddEditTransactionSheet(
                     value = timeLabel,
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("Time") },
+                    label = { Text(stringResource(R.string.label_time)) },
                     trailingIcon = {
                         IconButton(onClick = { showTimePicker = true }) {
-                            Icon(Icons.Filled.Schedule, contentDescription = "Pick time")
+                            Icon(Icons.Filled.Schedule, contentDescription = stringResource(R.string.cd_pick_time))
                         }
                     },
                     modifier = Modifier
@@ -336,12 +354,12 @@ fun AddEditTransactionSheet(
             OutlinedTextField(
                 value = note,
                 onValueChange = { note = it },
-                label = { Text("Note (optional)") },
+                label = { Text(stringResource(R.string.label_note)) },
                 modifier = Modifier.fillMaxWidth()
             )
 
             Spacer(Modifier.height(14.dp))
-            Text("Receipt (optional)", fontSize = 12.sp, color = FinanceColors.TextSoft)
+            Text(stringResource(R.string.label_receipt_optional), fontSize = 12.sp, color = FinanceColors.TextSoft)
             receiptUri?.let { value ->
                 Text(
                     File(value).name.ifBlank { value },
@@ -357,9 +375,13 @@ fun AddEditTransactionSheet(
                             PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                         )
                     }
-                ) { Text(if (receiptUri == null) "Add image" else "Replace image") }
+                ) {
+                    Text(
+                        stringResource(if (receiptUri == null) R.string.add_image else R.string.replace_image)
+                    )
+                }
                 if (receiptUri != null) {
-                    TextButton(onClick = { receiptUri = null }) { Text("Clear") }
+                    TextButton(onClick = { receiptUri = null }) { Text(stringResource(R.string.action_clear)) }
                 }
             }
 
@@ -367,18 +389,20 @@ fun AddEditTransactionSheet(
                 Spacer(Modifier.height(10.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(checked = repeatMonthly, onCheckedChange = { repeatMonthly = it })
-                    Text("Repeat monthly", fontSize = 13.sp, color = FinanceColors.Text)
+                    Text(stringResource(R.string.repeat_monthly), fontSize = 13.sp, color = FinanceColors.Text)
                 }
             } else if (existing.recurringId != null) {
                 Spacer(Modifier.height(10.dp))
                 TextButton(onClick = { onStopRecurring(existing.recurringId) }) {
-                    Text("Stop repeating this transaction", color = FinanceColors.Expense)
+                    Text(stringResource(R.string.stop_repeating), color = FinanceColors.Expense)
                 }
             }
 
             Spacer(Modifier.height(20.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-                OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f)) { Text("Cancel") }
+                OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.action_cancel))
+                }
                 Button(
                     onClick = {
                         val amount = amountText.toDoubleOrNull() ?: return@Button
@@ -405,7 +429,11 @@ fun AddEditTransactionSheet(
                     },
                     enabled = amountValid && rateValid,
                     modifier = Modifier.weight(1f)
-                ) { Text(if (existing == null) "Add" else "Save") }
+                ) {
+                    Text(
+                        stringResource(if (existing == null) R.string.action_add else R.string.action_save)
+                    )
+                }
             }
         }
     }
@@ -413,12 +441,12 @@ fun AddEditTransactionSheet(
     if (showAddExpenseType) {
         AlertDialog(
             onDismissRequest = { showAddExpenseType = false },
-            title = { Text("New expense type") },
+            title = { Text(stringResource(R.string.new_expense_type_title)) },
             text = {
                 OutlinedTextField(
                     value = newExpenseTypeText,
                     onValueChange = { newExpenseTypeText = it },
-                    label = { Text("Name") },
+                    label = { Text(stringResource(R.string.label_name)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -431,10 +459,12 @@ fun AddEditTransactionSheet(
                         category = name
                         showAddExpenseType = false
                     }
-                }) { Text("Add") }
+                }) { Text(stringResource(R.string.action_add)) }
             },
             dismissButton = {
-                TextButton(onClick = { showAddExpenseType = false }) { Text("Cancel") }
+                TextButton(onClick = { showAddExpenseType = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
             }
         )
     }
@@ -451,10 +481,12 @@ fun AddEditTransactionSheet(
                         date = Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate()
                     }
                     showDatePicker = false
-                }) { Text("OK") }
+                }) { Text(stringResource(R.string.action_ok)) }
             },
             dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
             }
         ) {
             DatePicker(state = pickerState)
@@ -469,16 +501,18 @@ fun AddEditTransactionSheet(
         )
         AlertDialog(
             onDismissRequest = { showTimePicker = false },
-            title = { Text("Select time") },
+            title = { Text(stringResource(R.string.select_time)) },
             text = { TimePicker(state = timeState) },
             confirmButton = {
                 TextButton(onClick = {
                     time = LocalTime.of(timeState.hour, timeState.minute)
                     showTimePicker = false
-                }) { Text("OK") }
+                }) { Text(stringResource(R.string.action_ok)) }
             },
             dismissButton = {
-                TextButton(onClick = { showTimePicker = false }) { Text("Cancel") }
+                TextButton(onClick = { showTimePicker = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
             }
         )
     }

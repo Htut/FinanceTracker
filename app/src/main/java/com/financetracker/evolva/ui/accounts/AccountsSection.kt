@@ -20,10 +20,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.financetracker.evolva.R
 import com.financetracker.evolva.data.calc.FinanceCalculator
 import com.financetracker.evolva.data.model.Account
 import com.financetracker.evolva.data.model.AccountKind
@@ -56,15 +58,20 @@ fun AccountsSection(
         } ?: "0"
     }
 
-    SectionCard(title = "Wallets") {
+    SectionCard(title = stringResource(R.string.section_wallets)) {
         Text(
-            "Track Cash, Bank, and E-Wallet balances. Assign a wallet when adding a transaction.",
+            stringResource(R.string.wallets_help),
             fontSize = 12.sp,
             color = FinanceColors.TextSoft
         )
         Spacer(modifier = Modifier.height(10.dp))
         accounts.filterNot { it.archived }.forEach { account ->
             val balance = FinanceCalculator.accountBalance(account, transactions)
+            val kindLabel = when (account.kind) {
+                AccountKind.CASH -> stringResource(R.string.kind_cash)
+                AccountKind.BANK -> stringResource(R.string.kind_bank)
+                AccountKind.EWALLET -> stringResource(R.string.kind_ewallet)
+            }
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -75,7 +82,7 @@ fun AccountsSection(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(account.name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = FinanceColors.Text)
                     Text(
-                        account.kind.name.lowercase().replaceFirstChar { it.uppercase() },
+                        kindLabel,
                         fontSize = 12.sp,
                         color = FinanceColors.TextSoft
                     )
@@ -86,13 +93,16 @@ fun AccountsSection(
                     fontWeight = FontWeight.SemiBold,
                     color = if (balance >= 0) FinanceColors.Income else FinanceColors.Expense
                 )
-                TextButton(onClick = { startEdit(account) }) { Text("Edit") }
+                TextButton(onClick = { startEdit(account) }) {
+                    Text(stringResource(R.string.action_edit))
+                }
             }
         }
 
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            if (editing == null) "Add wallet" else "Edit wallet",
+            if (editing == null) stringResource(R.string.add_wallet)
+            else stringResource(R.string.edit_wallet),
             fontSize = 12.sp,
             color = FinanceColors.TextSoft
         )
@@ -100,17 +110,22 @@ fun AccountsSection(
         OutlinedTextField(
             value = name,
             onValueChange = { name = it },
-            label = { Text("Name") },
+            label = { Text(stringResource(R.string.label_name)) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
         Spacer(modifier = Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             AccountKind.entries.forEach { k ->
+                val kindLabel = when (k) {
+                    AccountKind.CASH -> stringResource(R.string.kind_cash)
+                    AccountKind.BANK -> stringResource(R.string.kind_bank)
+                    AccountKind.EWALLET -> stringResource(R.string.kind_ewallet)
+                }
                 FilterChip(
                     selected = kind == k,
                     onClick = { kind = k },
-                    label = { Text(k.name.lowercase().replaceFirstChar { it.uppercase() }) }
+                    label = { Text(kindLabel) }
                 )
             }
         }
@@ -118,7 +133,7 @@ fun AccountsSection(
         OutlinedTextField(
             value = openingText,
             onValueChange = { openingText = it.filter { ch -> ch.isDigit() || ch == '.' || ch == '-' } },
-            label = { Text("Opening balance") },
+            label = { Text(stringResource(R.string.opening_balance)) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             modifier = Modifier.fillMaxWidth()
         )
@@ -143,16 +158,21 @@ fun AccountsSection(
                     openingText = "0"
                 },
                 enabled = name.isNotBlank()
-            ) { Text(if (editing == null) "Add" else "Save") }
+            ) {
+                Text(
+                    if (editing == null) stringResource(R.string.action_add)
+                    else stringResource(R.string.action_save)
+                )
+            }
             if (editing != null && editing?.id !in listOf(Account.ID_CASH, Account.ID_BANK, Account.ID_EWALLET)) {
                 TextButton(onClick = {
                     editing?.id?.let(onDelete)
                     startEdit(null)
-                }) { Text("Delete", color = FinanceColors.Expense) }
+                }) { Text(stringResource(R.string.action_delete), color = FinanceColors.Expense) }
             }
             if (editing != null) {
                 TextButton(onClick = { startEdit(null); name = ""; openingText = "0" }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.action_cancel))
                 }
             }
         }

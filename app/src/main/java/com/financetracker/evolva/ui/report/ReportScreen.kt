@@ -40,6 +40,7 @@ import com.financetracker.evolva.R
 import com.financetracker.evolva.data.calc.FinanceCalculator
 import com.financetracker.evolva.data.export.DetailExport
 import com.financetracker.evolva.data.export.DetailShareFormat
+import com.financetracker.evolva.data.locale.CategoryLabels
 import com.financetracker.evolva.data.model.DateFilter
 import com.financetracker.evolva.data.model.Transaction
 import com.financetracker.evolva.data.model.TransactionType
@@ -87,17 +88,14 @@ fun ReportScreen(viewModel: MainViewModel) {
     val monthLabel = remember(month) {
         month.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault()))
     }
-    val title = "Monthly report"
+    val title = stringResource(R.string.monthly_report)
     val subtitle = monthLabel
-    val summaryLines = remember(income, expense, savings, transferNet, net, currency) {
-        listOf(
-            "Income: ${fmt(income)}",
-            "Expense: ${fmt(expense)}",
-            "Savings: ${fmt(savings)}",
-            "Transfer net: ${fmt(transferNet)}",
-            "Net: ${fmt(net)}"
-        )
-    }
+    val incomeLine = stringResource(R.string.report_line_income, fmt(income))
+    val expenseLine = stringResource(R.string.report_line_expense, fmt(expense))
+    val savingsLine = stringResource(R.string.report_line_savings, fmt(savings))
+    val transferLine = stringResource(R.string.report_line_transfer, fmt(transferNet))
+    val netLine = stringResource(R.string.report_line_net, fmt(net))
+    val summaryLines = listOf(incomeLine, expenseLine, savingsLine, transferLine, netLine)
 
     fun saveBytes(format: DetailShareFormat, uri: android.net.Uri?) {
         if (uri == null) return
@@ -132,7 +130,7 @@ fun ReportScreen(viewModel: MainViewModel) {
         }
 
         item {
-            SectionCard(title = "Month") {
+            SectionCard(title = stringResource(R.string.month_label)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -141,7 +139,7 @@ fun ReportScreen(viewModel: MainViewModel) {
                     IconButton(onClick = { month = month.minusMonths(1) }) {
                         Icon(
                             Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                            contentDescription = "Previous month",
+                            contentDescription = stringResource(R.string.cd_previous_month),
                             tint = FinanceColors.Text
                         )
                     }
@@ -154,30 +152,30 @@ fun ReportScreen(viewModel: MainViewModel) {
                     IconButton(onClick = { month = month.plusMonths(1) }) {
                         Icon(
                             Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                            contentDescription = "Next month",
+                            contentDescription = stringResource(R.string.cd_next_month),
                             tint = FinanceColors.Text
                         )
                     }
                 }
                 if (month != YearMonth.now()) {
                     TextButton(onClick = { month = YearMonth.now() }) {
-                        Text("Jump to this month")
+                        Text(stringResource(R.string.jump_to_this_month))
                     }
                 }
             }
         }
 
         item {
-            SectionCard(title = "Summary") {
-                SummaryRow("Income", fmt(income), FinanceColors.Income)
-                SummaryRow("Expense", fmt(expense), FinanceColors.Expense)
-                SummaryRow("Savings", fmt(savings), FinanceColors.Text)
-                SummaryRow("Transfer net", fmt(transferNet), FinanceColors.Text)
+            SectionCard(title = stringResource(R.string.report_summary)) {
+                SummaryRow(stringResource(R.string.label_income), fmt(income), FinanceColors.Income)
+                SummaryRow(stringResource(R.string.label_expense), fmt(expense), FinanceColors.Expense)
+                SummaryRow(stringResource(R.string.label_savings), fmt(savings), FinanceColors.Text)
+                SummaryRow(stringResource(R.string.label_transfer_net), fmt(transferNet), FinanceColors.Text)
                 Spacer(modifier = Modifier.height(6.dp))
-                SummaryRow("Net", fmt(net), FinanceColors.Accent)
+                SummaryRow(stringResource(R.string.label_net), fmt(net), FinanceColors.Accent)
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    "${monthTxs.size} transaction(s)",
+                    stringResource(R.string.tx_count, monthTxs.size),
                     fontSize = 12.sp,
                     color = FinanceColors.TextSoft
                 )
@@ -185,10 +183,10 @@ fun ReportScreen(viewModel: MainViewModel) {
         }
 
         item {
-            SectionCard(title = "Top expense categories") {
+            SectionCard(title = stringResource(R.string.report_top_categories)) {
                 if (topCategories.isEmpty()) {
                     Text(
-                        "No expenses in this month.",
+                        stringResource(R.string.no_expenses_month),
                         fontSize = 13.sp,
                         color = FinanceColors.TextSoft
                     )
@@ -200,7 +198,11 @@ fun ReportScreen(viewModel: MainViewModel) {
                                 .padding(vertical = 4.dp),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(category, fontSize = 13.5.sp, color = FinanceColors.Text)
+                            Text(
+                                CategoryLabels.display(context, category),
+                                fontSize = 13.5.sp,
+                                color = FinanceColors.Text
+                            )
                             Text(fmt(amount), fontSize = 13.5.sp, color = FinanceColors.Expense)
                         }
                     }
@@ -216,7 +218,7 @@ fun ReportScreen(viewModel: MainViewModel) {
             ) {
                 Icon(Icons.Filled.Share, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Share or save report")
+                Text(stringResource(R.string.share_or_save_report))
             }
         }
     }
@@ -224,22 +226,27 @@ fun ReportScreen(viewModel: MainViewModel) {
     if (showShareOptions) {
         AlertDialog(
             onDismissRequest = { showShareOptions = false },
-            title = { Text("Share or save") },
+            title = { Text(stringResource(R.string.share_or_save)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
-                        "Includes the month summary header and all transactions for $monthLabel.",
+                        stringResource(R.string.report_share_help, monthLabel),
                         fontSize = 12.5.sp,
                         color = FinanceColors.TextSoft
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        "Share via",
+                        stringResource(R.string.share_via),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = FinanceColors.Text
                     )
                     DetailShareFormat.entries.forEach { format ->
+                        val formatLabel = when (format) {
+                            DetailShareFormat.TEXT -> stringResource(R.string.format_text)
+                            DetailShareFormat.CSV -> stringResource(R.string.format_csv)
+                            DetailShareFormat.PDF -> stringResource(R.string.format_pdf)
+                        }
                         TextButton(
                             onClick = {
                                 showShareOptions = false
@@ -248,11 +255,11 @@ fun ReportScreen(viewModel: MainViewModel) {
                                 )
                             },
                             modifier = Modifier.fillMaxWidth()
-                        ) { Text("Share ${format.label}") }
+                        ) { Text(stringResource(R.string.share_format, formatLabel)) }
                     }
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        "Save to device",
+                        stringResource(R.string.save_to_device),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = FinanceColors.Text
@@ -263,25 +270,27 @@ fun ReportScreen(viewModel: MainViewModel) {
                             saveTextLauncher.launch(DetailExport.fileName(title, DetailShareFormat.TEXT))
                         },
                         modifier = Modifier.fillMaxWidth()
-                    ) { Text("Save Text") }
+                    ) { Text(stringResource(R.string.save_text)) }
                     TextButton(
                         onClick = {
                             showShareOptions = false
                             saveCsvLauncher.launch(DetailExport.fileName(title, DetailShareFormat.CSV))
                         },
                         modifier = Modifier.fillMaxWidth()
-                    ) { Text("Save CSV") }
+                    ) { Text(stringResource(R.string.save_csv)) }
                     TextButton(
                         onClick = {
                             showShareOptions = false
                             savePdfLauncher.launch(DetailExport.fileName(title, DetailShareFormat.PDF))
                         },
                         modifier = Modifier.fillMaxWidth()
-                    ) { Text("Save PDF") }
+                    ) { Text(stringResource(R.string.save_pdf)) }
                 }
             },
             confirmButton = {
-                TextButton(onClick = { showShareOptions = false }) { Text("Cancel") }
+                TextButton(onClick = { showShareOptions = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
             }
         )
     }

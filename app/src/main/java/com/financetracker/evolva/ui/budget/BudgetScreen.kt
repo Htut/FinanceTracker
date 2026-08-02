@@ -35,6 +35,8 @@ import androidx.compose.foundation.background
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -43,6 +45,7 @@ import com.financetracker.evolva.R
 import com.financetracker.evolva.data.calc.BudgetState
 import com.financetracker.evolva.data.calc.FinanceCalculator
 import com.financetracker.evolva.data.calc.ForecastCalculator
+import com.financetracker.evolva.data.locale.CategoryLabels
 import com.financetracker.evolva.data.model.Categories
 import com.financetracker.evolva.data.model.formatAmount
 import com.financetracker.evolva.ui.MainViewModel
@@ -51,7 +54,6 @@ import com.financetracker.evolva.ui.components.DateFilterBar
 import com.financetracker.evolva.ui.components.LineChart
 import com.financetracker.evolva.ui.components.SectionCard
 import com.financetracker.evolva.ui.theme.FinanceColors
-import androidx.compose.ui.platform.LocalConfiguration
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
@@ -60,6 +62,7 @@ import java.time.format.TextStyle
 @Composable
 fun BudgetScreen(viewModel: MainViewModel) {
     val locale = LocalConfiguration.current.locales[0]
+    val context = LocalContext.current
     val transactions by viewModel.filteredTransactions.collectAsState()
     val allTransactions by viewModel.transactions.collectAsState()
     val budgets by viewModel.budgets.collectAsState()
@@ -131,10 +134,10 @@ fun BudgetScreen(viewModel: MainViewModel) {
         }
 
         item {
-            SectionCard(title = "Category Budgets (this month)") {
+            SectionCard(title = stringResource(R.string.category_budgets_month)) {
                 if (budgetRows.isEmpty()) {
                     Text(
-                        "No budgets set yet. Pick a category below, or load the \"Budget example\" starter template from Settings.",
+                        stringResource(R.string.budget_empty_help),
                         fontSize = 13.sp,
                         color = FinanceColors.TextSoft
                     )
@@ -164,15 +167,23 @@ fun BudgetScreen(viewModel: MainViewModel) {
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text(budget.category, fontSize = 13.5.sp, color = FinanceColors.Text)
                                     Text(
-                                        "${fmt(spent)} / ${fmt(budget.limit)} · Tap to edit",
+                                        CategoryLabels.display(context, budget.category),
+                                        fontSize = 13.5.sp,
+                                        color = FinanceColors.Text
+                                    )
+                                    Text(
+                                        stringResource(
+                                            R.string.budget_spent_of_limit,
+                                            fmt(spent),
+                                            fmt(budget.limit)
+                                        ),
                                         fontSize = 12.sp,
                                         color = FinanceColors.TextSoft
                                     )
                                 }
                                 TextButton(onClick = { viewModel.deleteBudget(budget.category) }) {
-                                    Text("Delete", color = FinanceColors.Expense)
+                                    Text(stringResource(R.string.action_delete), color = FinanceColors.Expense)
                                 }
                             }
                             Spacer(modifier = Modifier.height(6.dp))
@@ -182,14 +193,14 @@ fun BudgetScreen(viewModel: MainViewModel) {
                             )
                             if (state == BudgetState.OVER) {
                                 Text(
-                                    "Over budget",
+                                    stringResource(R.string.over_budget),
                                     fontSize = 11.5.sp,
                                     color = FinanceColors.Expense,
                                     modifier = Modifier.padding(top = 3.dp)
                                 )
                             } else if (state == BudgetState.WARN) {
                                 Text(
-                                    "Approaching limit",
+                                    stringResource(R.string.approaching_limit),
                                     fontSize = 11.5.sp,
                                     color = FinanceColors.Warn,
                                     modifier = Modifier.padding(top = 3.dp)
@@ -200,7 +211,7 @@ fun BudgetScreen(viewModel: MainViewModel) {
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))
-                Text("Set or edit a limit", fontSize = 12.sp, color = FinanceColors.TextSoft)
+                Text(stringResource(R.string.set_or_edit_limit), fontSize = 12.sp, color = FinanceColors.TextSoft)
                 Spacer(Modifier.height(6.dp))
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     ExposedDropdownMenuBox(
@@ -209,10 +220,10 @@ fun BudgetScreen(viewModel: MainViewModel) {
                         modifier = Modifier.weight(1f)
                     ) {
                         OutlinedTextField(
-                            value = newCategory,
+                            value = CategoryLabels.display(context, newCategory),
                             onValueChange = {},
                             readOnly = true,
-                            label = { Text("Category") },
+                            label = { Text(stringResource(R.string.label_category)) },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryMenuExpanded) },
                             modifier = Modifier
                                 .menuAnchor(MenuAnchorType.PrimaryNotEditable)
@@ -223,7 +234,7 @@ fun BudgetScreen(viewModel: MainViewModel) {
                             onDismissRequest = { categoryMenuExpanded = false }
                         ) {
                             budgetable.forEach { c ->
-                                DropdownMenuItem(text = { Text(c) }, onClick = {
+                                DropdownMenuItem(text = { Text(CategoryLabels.display(context, c)) }, onClick = {
                                     newCategory = c
                                     newLimitText = budgets.find { it.category == c }?.limit?.let { limit ->
                                         if (limit == limit.toLong().toDouble()) limit.toLong().toString() else limit.toString()
@@ -236,12 +247,12 @@ fun BudgetScreen(viewModel: MainViewModel) {
                     OutlinedTextField(
                         value = newLimitText,
                         onValueChange = { input -> newLimitText = input.filter { it.isDigit() || it == '.' } },
-                        label = { Text("Limit") },
+                        label = { Text(stringResource(R.string.label_limit)) },
                         keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal),
                         modifier = Modifier.width(120.dp)
                     )
                 }
-                Spacer(Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 Button(
                     onClick = {
                         val limit = newLimitText.toDoubleOrNull()
@@ -251,22 +262,22 @@ fun BudgetScreen(viewModel: MainViewModel) {
                         }
                     },
                     enabled = newLimitText.toDoubleOrNull()?.let { it > 0 } ?: false
-                ) { Text("Save Limit") }
+                ) { Text(stringResource(R.string.save_limit)) }
             }
         }
 
         item {
-            SectionCard(title = "Cash Flow Forecast") {
+            SectionCard(title = stringResource(R.string.cash_flow_forecast)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf(3, 6, 12).forEach { months ->
                         FilterChip(
                             selected = forecastHorizon == months,
                             onClick = { viewModel.setForecastHorizon(months) },
-                            label = { Text("$months mo") }
+                            label = { Text(stringResource(R.string.forecast_months, months)) }
                         )
                     }
                 }
-                Spacer(Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(10.dp))
                 LineChart(
                     labels = forecastLabels,
                     values = forecastValues,
@@ -276,7 +287,7 @@ fun BudgetScreen(viewModel: MainViewModel) {
                 )
 
                 forecast.firstNegativeMonth?.let { month ->
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -285,16 +296,19 @@ fun BudgetScreen(viewModel: MainViewModel) {
                             .padding(12.dp)
                     ) {
                         Text(
-                            "Projected balance goes negative around ${month.format(DateTimeFormatter.ofPattern("MMM yyyy"))}, at current average spending.",
+                            stringResource(
+                                R.string.forecast_negative_around,
+                                month.format(DateTimeFormatter.ofPattern("MMM yyyy"))
+                            ),
                             fontSize = 12.5.sp,
                             color = FinanceColors.Expense
                         )
                     }
                 }
 
-                Spacer(Modifier.height(14.dp))
-                Text("Month-by-month projection", fontSize = 12.sp, color = FinanceColors.TextSoft)
-                Spacer(Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(14.dp))
+                Text(stringResource(R.string.month_by_month_projection), fontSize = 12.sp, color = FinanceColors.TextSoft)
+                Spacer(modifier = Modifier.height(6.dp))
                 forecast.futurePoints.forEach { point ->
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp),
@@ -311,6 +325,6 @@ fun BudgetScreen(viewModel: MainViewModel) {
             }
         }
 
-        item { Spacer(Modifier.height(24.dp)) }
+        item { Spacer(modifier = Modifier.height(24.dp)) }
     }
 }

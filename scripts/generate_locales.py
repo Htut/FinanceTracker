@@ -1,760 +1,186 @@
 # -*- coding: utf-8 -*-
-"""Generate localized values-*/strings.xml from English keys."""
+"""Generate localized values-*/strings.xml from English keys.
+
+Parses ALL <string name="..."> entries from values/strings.xml, loads complete
+translations from scripts/translations/<locale>.json, and writes UTF-8 Android
+resource files for each locale folder.
+"""
+from __future__ import annotations
+
+import json
+import re
+import sys
 from pathlib import Path
 
-ROOT = Path(r"D:\Android\FinanceTracker\app\src\main\res")
+SCRIPT_DIR = Path(__file__).resolve().parent
+ROOT = SCRIPT_DIR.parent / "app" / "src" / "main" / "res"
+ENGLISH_XML = ROOT / "values" / "strings.xml"
+TRANSLATIONS_DIR = SCRIPT_DIR / "translations"
 
-# English keys in display order
-KEYS = [
-    ("app_name", "Finance Tracker"),
-    ("budget_widget_description", "Monthly spending and remaining budget"),
-    ("budget_widget_loading", "Finance Tracker"),
-    ("tab_dashboard", "Dashboard"),
-    ("tab_transactions", "Transactions"),
-    ("tab_budget", "Budget"),
-    ("tab_report", "Report"),
-    ("tab_settings", "Settings"),
-    ("action_add", "Add"),
-    ("action_save", "Save"),
-    ("action_cancel", "Cancel"),
-    ("action_delete", "Delete"),
-    ("action_edit", "Edit"),
-    ("action_remove", "Remove"),
-    ("action_continue", "Continue"),
-    ("action_ok", "OK"),
-    ("action_undo", "Undo"),
-    ("action_clear", "Clear"),
-    ("action_share", "Share"),
-    ("action_exit", "Exit"),
-    ("label_optional", "optional"),
-    ("notice_title", "Notice"),
-    ("dashboard_title", "Finance Tracker"),
-    ("dashboard_subtitle", "Your money, at a glance"),
-    ("label_income", "Income"),
-    ("label_expense", "Expense"),
-    ("label_savings", "Savings"),
-    ("label_net_balance", "Net Balance"),
-    ("label_transfer_net", "Transfer net"),
-    ("label_net", "Net"),
-    ("section_expenses_by_category", "Expenses by Category"),
-    ("section_income_vs_expense", "Income vs Expense (6 mo, dashed = average)"),
-    ("section_savings_growth", "Savings Growth"),
-    ("section_insights", "Insights"),
-    ("share_or_save", "Share or save"),
-    ("save_text", "Save Text"),
-    ("save_csv", "Save CSV"),
-    ("save_pdf", "Save PDF"),
-    ("no_transactions_period", "No transactions in this period."),
-    ("transactions_title", "Transactions"),
-    ("add_transaction", "Add transaction"),
-    ("search_hint", "Search note, category…"),
-    ("clear_filters", "Clear filters"),
-    ("transaction_deleted", "Transaction deleted"),
-    ("all_transactions_cleared", "All transactions cleared"),
-    ("no_transactions_filter", "No transactions in this date filter. Tap + to add one, or load a starter template from Settings."),
-    ("no_transactions_match", "No transactions match your search/filters."),
-    ("edit_transaction", "Edit Transaction"),
-    ("add_transaction_title", "Add Transaction"),
-    ("label_type", "Type"),
-    ("label_category", "Category"),
-    ("label_relation", "Relation"),
-    ("label_amount", "Amount"),
-    ("label_date", "Date"),
-    ("label_time", "Time"),
-    ("label_note", "Note (optional)"),
-    ("label_wallet", "Wallet"),
-    ("label_currency", "Currency"),
-    ("label_exchange_rate", "Rate to home"),
-    ("label_receipt", "Receipt"),
-    ("include_time", "Include time"),
-    ("repeat_monthly", "Repeat monthly"),
-    ("direction_sent", "Sent"),
-    ("direction_received", "Received"),
-    ("add_image", "Add image"),
-    ("replace_image", "Replace image"),
-    ("add_expense_type", "Add expense type…"),
-    ("budget_title", "Budget"),
-    ("budget_subtitle", "Limits for %1$s and where cash flow is headed"),
-    ("save_limit", "Save Limit"),
-    ("set_or_edit_limit", "Set or edit a limit"),
-    ("report_title", "Report"),
-    ("report_summary", "Summary"),
-    ("report_top_categories", "Top expense categories"),
-    ("share_or_save_report", "Share or save report"),
-    ("jump_to_this_month", "Jump to this month"),
-    ("month_label", "Month"),
-    ("settings_title", "Settings"),
-    ("settings_tab_general", "General"),
-    ("settings_tab_data", "Data"),
-    ("settings_tab_backup", "Backup"),
-    ("settings_tab_security", "Security"),
-    ("settings_tab_about", "About"),
-    ("section_language", "Language"),
-    ("section_currency", "Currency"),
-    ("section_exchange_rates", "Exchange rates"),
-    ("exchange_rates_help", "Units of your home currency per 1 unit of the foreign currency. Used when a transaction is in another currency."),
-    ("section_budget_alerts", "Budget alerts"),
-    ("budget_alerts_help", "Get a notification when a category reaches 80%% of its monthly limit or goes over."),
-    ("budget_alerts_toggle", "Near / over budget"),
-    ("section_date_filter_autohide", "Date filter auto-hide"),
-    ("date_filter_autohide_help", "Collapse the date filter chips after idle time. Set to Off to keep them open."),
-    ("filter_off", "Off"),
-    ("section_themes", "Themes"),
-    ("themes_subtitle", "Pick a look that fits your money mood"),
-    ("section_wallets", "Wallets"),
-    ("wallets_help", "Track Cash, Bank, and E-Wallet balances. Assign a wallet when adding a transaction."),
-    ("section_custom_expense_types", "Custom expense types"),
-    ("section_starter_templates", "Sample templates"),
-    ("section_recurring", "Recurring Transactions"),
-    ("section_backup", "Backup, Restore & Share"),
-    ("section_app_password", "App Password"),
-    ("section_danger_zone", "Danger Zone"),
-    ("section_about", "About"),
-    ("section_exit_app", "Exit App"),
-    ("clear_password", "Clear Password"),
-    ("unlock_title", "Enter your app password to continue"),
-    ("unlock_button", "Unlock"),
-    ("unlock_device_lock", "Use device lock"),
-    ("incorrect_password", "Incorrect password"),
-    ("app_password_label", "App password"),
-    ("kind_cash", "Cash"),
-    ("kind_bank", "Bank"),
-    ("kind_ewallet", "E-Wallet"),
-    ("opening_balance", "Opening balance"),
-    ("add_wallet", "Add wallet"),
-    ("edit_wallet", "Edit wallet"),
-    ("widget_month_spend", "This month spent"),
-    ("widget_budget_remaining", "Budget remaining"),
+LOCALES = [
+    "ms",
+    "my",
+    "id",
+    "ta",
+    "zh-rCN",
+    "ja",
+    "ko",
+    "ru",
+    "th",
+    "es",
+    "fr",
+    "it",
+    "vi",
+    "tr",
+    "fa",
+    "de",
+    "ar",
+    "ur",
+    "hi",
 ]
 
-# folder -> full translations dict (key -> text). Missing keys fall back to English.
-# Only override keys that differ; script merges with English.
-LOCALES = {
-    "ms": {  # Malay
-        "app_name": "Penjejak Kewangan",
-        "tab_dashboard": "Papan Pemuka",
-        "tab_transactions": "Transaksi",
-        "tab_budget": "Belanjawan",
-        "tab_report": "Laporan",
-        "tab_settings": "Tetapan",
-        "action_add": "Tambah",
-        "action_save": "Simpan",
-        "action_cancel": "Batal",
-        "action_delete": "Padam",
-        "action_edit": "Edit",
-        "action_remove": "Buang",
-        "action_continue": "Teruskan",
-        "action_ok": "OK",
-        "action_undo": "Buat asal",
-        "action_clear": "Kosongkan",
-        "action_share": "Kongsi",
-        "action_exit": "Keluar",
-        "dashboard_subtitle": "Wang anda, sekilas pandang",
-        "label_income": "Pendapatan",
-        "label_expense": "Perbelanjaan",
-        "label_savings": "Simpanan",
-        "label_net_balance": "Baki Bersih",
-        "transactions_title": "Transaksi",
-        "add_transaction": "Tambah transaksi",
-        "search_hint": "Cari nota, kategori…",
-        "clear_filters": "Kosongkan penapis",
-        "budget_title": "Belanjawan",
-        "report_title": "Laporan",
-        "settings_title": "Tetapan",
-        "settings_tab_general": "Umum",
-        "settings_tab_data": "Data",
-        "settings_tab_backup": "Sandaran",
-        "settings_tab_security": "Keselamatan",
-        "settings_tab_about": "Perihal",
-        "section_language": "Bahasa",
-        "section_currency": "Mata wang",
-        "section_exchange_rates": "Kadar pertukaran",
-        "section_budget_alerts": "Amaran belanjawan",
-        "section_themes": "Tema",
-        "section_wallets": "Dompet",
-        "unlock_button": "Buka kunci",
-        "kind_cash": "Tunai",
-        "kind_bank": "Bank",
-        "kind_ewallet": "E-Dompet",
-        "widget_month_spend": "Perbelanjaan bulan ini",
-        "widget_budget_remaining": "Baki belanjawan",
-        "share_or_save": "Kongsi atau simpan",
-        "label_wallet": "Dompet",
-        "label_currency": "Mata wang",
-        "label_amount": "Jumlah",
-        "label_category": "Kategori",
-        "label_date": "Tarikh",
-        "label_note": "Nota (pilihan)",
-        "filter_off": "Mati",
-        "incorrect_password": "Kata laluan salah",
-        "unlock_title": "Masukkan kata laluan aplikasi untuk teruskan",
-    },
-    "my": {  # Myanmar
-        "app_name": "ဘဏ္ဍာရေး ခြေရာခံ",
-        "tab_dashboard": "ဒိုင်ခွက်",
-        "tab_transactions": "ငွေစာရင်းများ",
-        "tab_budget": "ဘတ်ဂျက်",
-        "tab_report": "အစီရင်ခံစာ",
-        "tab_settings": "ဆက်တင်များ",
-        "action_add": "ထည့်ရန်",
-        "action_save": "သိမ်းရန်",
-        "action_cancel": "ပယ်ဖျက်",
-        "action_delete": "ဖျက်ရန်",
-        "action_edit": "တည်းဖြတ်",
-        "action_undo": "နောက်ပြန်",
-        "action_share": "မျှဝေ",
-        "action_exit": "ထွက်ရန်",
-        "dashboard_subtitle": "သင့်ငွေကြေးကို တစ်ချက်ကြည့်",
-        "label_income": "ဝင်ငွေ",
-        "label_expense": "အသုံးစရိတ်",
-        "label_savings": "စုငွေ",
-        "label_net_balance": "အသားတင် လက်ကျန်",
-        "transactions_title": "ငွေစာရင်းများ",
-        "add_transaction": "ငွေစာရင်း ထည့်ရန်",
-        "budget_title": "ဘတ်ဂျက်",
-        "report_title": "အစီရင်ခံစာ",
-        "settings_title": "ဆက်တင်များ",
-        "settings_tab_general": "အထွေထွေ",
-        "settings_tab_data": "ဒေတာ",
-        "settings_tab_backup": "အရန်သိမ်း",
-        "settings_tab_security": "လုံခြုံရေး",
-        "settings_tab_about": "အကြောင်း",
-        "section_language": "ဘာသာစကား",
-        "section_currency": "ငွေကြေး",
-        "section_exchange_rates": "ငွေလဲနှုန်း",
-        "section_wallets": "ပိုက်ဆံအိတ်များ",
-        "unlock_button": "ဖွင့်ရန်",
-        "kind_cash": "ငွေသား",
-        "kind_bank": "ဘဏ်",
-        "kind_ewallet": "အီး-ပိုက်ဆံအိတ်",
-        "widget_month_spend": "ယခုလ အသုံးစရိတ်",
-        "widget_budget_remaining": "ဘတ်ဂျက် ကျန်ရှိ",
-        "label_amount": "ပမာဏ",
-        "label_category": "အမျိုးအစား",
-        "filter_off": "ပိတ်",
-        "incorrect_password": "စကားဝှက်မှားနေသည်",
-    },
-    "id": {  # Indonesian
-        "app_name": "Pelacak Keuangan",
-        "tab_dashboard": "Dasbor",
-        "tab_transactions": "Transaksi",
-        "tab_budget": "Anggaran",
-        "tab_report": "Laporan",
-        "tab_settings": "Pengaturan",
-        "action_add": "Tambah",
-        "action_save": "Simpan",
-        "action_cancel": "Batal",
-        "action_delete": "Hapus",
-        "action_edit": "Edit",
-        "action_undo": "Urungkan",
-        "action_share": "Bagikan",
-        "action_exit": "Keluar",
-        "dashboard_subtitle": "Uang Anda, sekilas",
-        "label_income": "Pemasukan",
-        "label_expense": "Pengeluaran",
-        "label_savings": "Tabungan",
-        "label_net_balance": "Saldo Bersih",
-        "transactions_title": "Transaksi",
-        "add_transaction": "Tambah transaksi",
-        "budget_title": "Anggaran",
-        "report_title": "Laporan",
-        "settings_title": "Pengaturan",
-        "settings_tab_general": "Umum",
-        "settings_tab_data": "Data",
-        "settings_tab_backup": "Cadangan",
-        "settings_tab_security": "Keamanan",
-        "settings_tab_about": "Tentang",
-        "section_language": "Bahasa",
-        "section_currency": "Mata uang",
-        "section_exchange_rates": "Kurs",
-        "section_wallets": "Dompet",
-        "unlock_button": "Buka",
-        "kind_cash": "Tunai",
-        "kind_bank": "Bank",
-        "kind_ewallet": "E-Dompet",
-        "widget_month_spend": "Pengeluaran bulan ini",
-        "widget_budget_remaining": "Sisa anggaran",
-        "filter_off": "Mati",
-        "incorrect_password": "Kata sandi salah",
-    },
-    "ta": {
-        "app_name": "நிதி கண்காணிப்பு",
-        "tab_dashboard": "டாஷ்போர்டு",
-        "tab_transactions": "பரிவர்த்தனைகள்",
-        "tab_budget": "பட்ஜெட்",
-        "tab_report": "அறிக்கை",
-        "tab_settings": "அமைப்புகள்",
-        "action_add": "சேர்",
-        "action_save": "சேமி",
-        "action_cancel": "ரத்து",
-        "action_delete": "நீக்கு",
-        "action_edit": "திருத்து",
-        "action_undo": "செயல்தவிர்",
-        "label_income": "வருமானம்",
-        "label_expense": "செலவு",
-        "label_savings": "சேமிப்பு",
-        "settings_title": "அமைப்புகள்",
-        "section_language": "மொழி",
-        "section_currency": "நாணயம்",
-        "section_wallets": "பணப்பைகள்",
-        "unlock_button": "திற",
-        "kind_cash": "ரொக்கம்",
-        "kind_bank": "வங்கி",
-        "kind_ewallet": "மின்-பணப்பை",
-    },
-    "zh-rCN": {
-        "app_name": "理财追踪",
-        "tab_dashboard": "概览",
-        "tab_transactions": "交易",
-        "tab_budget": "预算",
-        "tab_report": "报表",
-        "tab_settings": "设置",
-        "action_add": "添加",
-        "action_save": "保存",
-        "action_cancel": "取消",
-        "action_delete": "删除",
-        "action_edit": "编辑",
-        "action_undo": "撤销",
-        "action_share": "分享",
-        "action_exit": "退出",
-        "dashboard_subtitle": "一目了然的财务状况",
-        "label_income": "收入",
-        "label_expense": "支出",
-        "label_savings": "储蓄",
-        "label_net_balance": "净余额",
-        "transactions_title": "交易",
-        "add_transaction": "添加交易",
-        "budget_title": "预算",
-        "report_title": "报表",
-        "settings_title": "设置",
-        "settings_tab_general": "通用",
-        "settings_tab_data": "数据",
-        "settings_tab_backup": "备份",
-        "settings_tab_security": "安全",
-        "settings_tab_about": "关于",
-        "section_language": "语言",
-        "section_currency": "货币",
-        "section_exchange_rates": "汇率",
-        "section_wallets": "钱包",
-        "unlock_button": "解锁",
-        "kind_cash": "现金",
-        "kind_bank": "银行",
-        "kind_ewallet": "电子钱包",
-        "widget_month_spend": "本月支出",
-        "widget_budget_remaining": "剩余预算",
-        "filter_off": "关闭",
-        "incorrect_password": "密码错误",
-    },
-    "ja": {
-        "app_name": "家計トラッカー",
-        "tab_dashboard": "ダッシュボード",
-        "tab_transactions": "取引",
-        "tab_budget": "予算",
-        "tab_report": "レポート",
-        "tab_settings": "設定",
-        "action_add": "追加",
-        "action_save": "保存",
-        "action_cancel": "キャンセル",
-        "action_delete": "削除",
-        "action_edit": "編集",
-        "action_undo": "元に戻す",
-        "action_share": "共有",
-        "action_exit": "終了",
-        "dashboard_subtitle": "お金の状況をひと目で",
-        "label_income": "収入",
-        "label_expense": "支出",
-        "label_savings": "貯蓄",
-        "label_net_balance": "純残高",
-        "transactions_title": "取引",
-        "add_transaction": "取引を追加",
-        "budget_title": "予算",
-        "report_title": "レポート",
-        "settings_title": "設定",
-        "settings_tab_general": "一般",
-        "settings_tab_data": "データ",
-        "settings_tab_backup": "バックアップ",
-        "settings_tab_security": "セキュリティ",
-        "settings_tab_about": "情報",
-        "section_language": "言語",
-        "section_currency": "通貨",
-        "section_exchange_rates": "為替レート",
-        "section_wallets": "ウォレット",
-        "unlock_button": "ロック解除",
-        "kind_cash": "現金",
-        "kind_bank": "銀行",
-        "kind_ewallet": "電子ウォレット",
-        "widget_month_spend": "今月の支出",
-        "widget_budget_remaining": "予算残高",
-        "filter_off": "オフ",
-        "incorrect_password": "パスワードが違います",
-    },
-    "ko": {
-        "app_name": "가계부 트래커",
-        "tab_dashboard": "대시보드",
-        "tab_transactions": "거래",
-        "tab_budget": "예산",
-        "tab_report": "보고서",
-        "tab_settings": "설정",
-        "action_add": "추가",
-        "action_save": "저장",
-        "action_cancel": "취소",
-        "action_delete": "삭제",
-        "action_edit": "편집",
-        "action_undo": "실행 취소",
-        "label_income": "수입",
-        "label_expense": "지출",
-        "label_savings": "저축",
-        "label_net_balance": "순잔액",
-        "settings_title": "설정",
-        "section_language": "언어",
-        "section_currency": "통화",
-        "section_wallets": "지갑",
-        "unlock_button": "잠금 해제",
-        "kind_cash": "현금",
-        "kind_bank": "은행",
-        "kind_ewallet": "전자지갑",
-        "widget_month_spend": "이번 달 지출",
-        "widget_budget_remaining": "남은 예산",
-    },
-    "ru": {
-        "app_name": "Финансовый трекер",
-        "tab_dashboard": "Панель",
-        "tab_transactions": "Операции",
-        "tab_budget": "Бюджет",
-        "tab_report": "Отчёт",
-        "tab_settings": "Настройки",
-        "action_add": "Добавить",
-        "action_save": "Сохранить",
-        "action_cancel": "Отмена",
-        "action_delete": "Удалить",
-        "action_edit": "Изменить",
-        "action_undo": "Отменить",
-        "label_income": "Доход",
-        "label_expense": "Расход",
-        "label_savings": "Накопления",
-        "label_net_balance": "Чистый баланс",
-        "settings_title": "Настройки",
-        "section_language": "Язык",
-        "section_currency": "Валюта",
-        "section_wallets": "Кошельки",
-        "unlock_button": "Разблокировать",
-        "kind_cash": "Наличные",
-        "kind_bank": "Банк",
-        "kind_ewallet": "Эл. кошелёк",
-    },
-    "th": {
-        "app_name": "ติดตามการเงิน",
-        "tab_dashboard": "แดชบอร์ด",
-        "tab_transactions": "รายการ",
-        "tab_budget": "งบประมาณ",
-        "tab_report": "รายงาน",
-        "tab_settings": "ตั้งค่า",
-        "action_add": "เพิ่ม",
-        "action_save": "บันทึก",
-        "action_cancel": "ยกเลิก",
-        "action_delete": "ลบ",
-        "action_edit": "แก้ไข",
-        "action_undo": "เลิกทำ",
-        "label_income": "รายรับ",
-        "label_expense": "รายจ่าย",
-        "label_savings": "เงินออม",
-        "settings_title": "ตั้งค่า",
-        "section_language": "ภาษา",
-        "section_currency": "สกุลเงิน",
-        "section_wallets": "กระเป๋าเงิน",
-        "unlock_button": "ปลดล็อก",
-        "kind_cash": "เงินสด",
-        "kind_bank": "ธนาคาร",
-        "kind_ewallet": "กระเป๋าเงินอิเล็กทรอนิกส์",
-    },
-    "es": {
-        "app_name": "Control de finanzas",
-        "tab_dashboard": "Panel",
-        "tab_transactions": "Transacciones",
-        "tab_budget": "Presupuesto",
-        "tab_report": "Informe",
-        "tab_settings": "Ajustes",
-        "action_add": "Añadir",
-        "action_save": "Guardar",
-        "action_cancel": "Cancelar",
-        "action_delete": "Eliminar",
-        "action_edit": "Editar",
-        "action_undo": "Deshacer",
-        "label_income": "Ingresos",
-        "label_expense": "Gastos",
-        "label_savings": "Ahorros",
-        "label_net_balance": "Saldo neto",
-        "settings_title": "Ajustes",
-        "section_language": "Idioma",
-        "section_currency": "Moneda",
-        "section_wallets": "Carteras",
-        "unlock_button": "Desbloquear",
-        "kind_cash": "Efectivo",
-        "kind_bank": "Banco",
-        "kind_ewallet": "Monedero electrónico",
-    },
-    "fr": {
-        "app_name": "Suivi financier",
-        "tab_dashboard": "Tableau de bord",
-        "tab_transactions": "Transactions",
-        "tab_budget": "Budget",
-        "tab_report": "Rapport",
-        "tab_settings": "Paramètres",
-        "action_add": "Ajouter",
-        "action_save": "Enregistrer",
-        "action_cancel": "Annuler",
-        "action_delete": "Supprimer",
-        "action_edit": "Modifier",
-        "action_undo": "Annuler",
-        "label_income": "Revenus",
-        "label_expense": "Dépenses",
-        "label_savings": "Épargne",
-        "label_net_balance": "Solde net",
-        "settings_title": "Paramètres",
-        "section_language": "Langue",
-        "section_currency": "Devise",
-        "section_wallets": "Portefeuilles",
-        "unlock_button": "Déverrouiller",
-        "kind_cash": "Espèces",
-        "kind_bank": "Banque",
-        "kind_ewallet": "Portefeuille électronique",
-    },
-    "it": {
-        "app_name": "Tracker finanziario",
-        "tab_dashboard": "Dashboard",
-        "tab_transactions": "Transazioni",
-        "tab_budget": "Budget",
-        "tab_report": "Report",
-        "tab_settings": "Impostazioni",
-        "action_add": "Aggiungi",
-        "action_save": "Salva",
-        "action_cancel": "Annulla",
-        "action_delete": "Elimina",
-        "action_edit": "Modifica",
-        "action_undo": "Annulla",
-        "label_income": "Entrate",
-        "label_expense": "Spese",
-        "label_savings": "Risparmi",
-        "settings_title": "Impostazioni",
-        "section_language": "Lingua",
-        "section_currency": "Valuta",
-        "section_wallets": "Portafogli",
-        "unlock_button": "Sblocca",
-        "kind_cash": "Contanti",
-        "kind_bank": "Banca",
-        "kind_ewallet": "Portafoglio elettronico",
-    },
-    "vi": {
-        "app_name": "Theo dõi tài chính",
-        "tab_dashboard": "Tổng quan",
-        "tab_transactions": "Giao dịch",
-        "tab_budget": "Ngân sách",
-        "tab_report": "Báo cáo",
-        "tab_settings": "Cài đặt",
-        "action_add": "Thêm",
-        "action_save": "Lưu",
-        "action_cancel": "Hủy",
-        "action_delete": "Xóa",
-        "action_edit": "Sửa",
-        "action_undo": "Hoàn tác",
-        "label_income": "Thu nhập",
-        "label_expense": "Chi tiêu",
-        "label_savings": "Tiết kiệm",
-        "settings_title": "Cài đặt",
-        "section_language": "Ngôn ngữ",
-        "section_currency": "Tiền tệ",
-        "section_wallets": "Ví",
-        "unlock_button": "Mở khóa",
-        "kind_cash": "Tiền mặt",
-        "kind_bank": "Ngân hàng",
-        "kind_ewallet": "Ví điện tử",
-    },
-    "tr": {
-        "app_name": "Finans Takip",
-        "tab_dashboard": "Panel",
-        "tab_transactions": "İşlemler",
-        "tab_budget": "Bütçe",
-        "tab_report": "Rapor",
-        "tab_settings": "Ayarlar",
-        "action_add": "Ekle",
-        "action_save": "Kaydet",
-        "action_cancel": "İptal",
-        "action_delete": "Sil",
-        "action_edit": "Düzenle",
-        "action_undo": "Geri al",
-        "label_income": "Gelir",
-        "label_expense": "Gider",
-        "label_savings": "Birikim",
-        "settings_title": "Ayarlar",
-        "section_language": "Dil",
-        "section_currency": "Para birimi",
-        "section_wallets": "Cüzdanlar",
-        "unlock_button": "Kilidi aç",
-        "kind_cash": "Nakit",
-        "kind_bank": "Banka",
-        "kind_ewallet": "E-cüzdan",
-    },
-    "fa": {
-        "app_name": "پیگیری مالی",
-        "tab_dashboard": "داشبورد",
-        "tab_transactions": "تراکنش‌ها",
-        "tab_budget": "بودجه",
-        "tab_report": "گزارش",
-        "tab_settings": "تنظیمات",
-        "action_add": "افزودن",
-        "action_save": "ذخیره",
-        "action_cancel": "لغو",
-        "action_delete": "حذف",
-        "action_edit": "ویرایش",
-        "action_undo": "بازگردانی",
-        "label_income": "درآمد",
-        "label_expense": "هزینه",
-        "label_savings": "پس‌انداز",
-        "settings_title": "تنظیمات",
-        "section_language": "زبان",
-        "section_currency": "ارز",
-        "section_wallets": "کیف‌پول‌ها",
-        "unlock_button": "باز کردن قفل",
-        "kind_cash": "نقد",
-        "kind_bank": "بانک",
-        "kind_ewallet": "کیف پول الکترونیکی",
-    },
-    "de": {
-        "app_name": "Finanz-Tracker",
-        "tab_dashboard": "Übersicht",
-        "tab_transactions": "Transaktionen",
-        "tab_budget": "Budget",
-        "tab_report": "Bericht",
-        "tab_settings": "Einstellungen",
-        "action_add": "Hinzufügen",
-        "action_save": "Speichern",
-        "action_cancel": "Abbrechen",
-        "action_delete": "Löschen",
-        "action_edit": "Bearbeiten",
-        "action_undo": "Rückgängig",
-        "label_income": "Einnahmen",
-        "label_expense": "Ausgaben",
-        "label_savings": "Ersparnisse",
-        "label_net_balance": "Nettosaldo",
-        "settings_title": "Einstellungen",
-        "section_language": "Sprache",
-        "section_currency": "Währung",
-        "section_wallets": "Geldbörsen",
-        "unlock_button": "Entsperren",
-        "kind_cash": "Bargeld",
-        "kind_bank": "Bank",
-        "kind_ewallet": "E-Wallet",
-    },
-    "ar": {
-        "app_name": "متتبع المالية",
-        "tab_dashboard": "لوحة التحكم",
-        "tab_transactions": "المعاملات",
-        "tab_budget": "الميزانية",
-        "tab_report": "التقرير",
-        "tab_settings": "الإعدادات",
-        "action_add": "إضافة",
-        "action_save": "حفظ",
-        "action_cancel": "إلغاء",
-        "action_delete": "حذف",
-        "action_edit": "تعديل",
-        "action_undo": "تراجع",
-        "label_income": "الدخل",
-        "label_expense": "المصروف",
-        "label_savings": "المدخرات",
-        "label_net_balance": "الرصيد الصافي",
-        "settings_title": "الإعدادات",
-        "section_language": "اللغة",
-        "section_currency": "العملة",
-        "section_wallets": "المحافظ",
-        "unlock_button": "فتح القفل",
-        "kind_cash": "نقداً",
-        "kind_bank": "بنك",
-        "kind_ewallet": "محفظة إلكترونية",
-    },
-    "ur": {
-        "app_name": "مالیاتی ٹریکر",
-        "tab_dashboard": "ڈیش بورڈ",
-        "tab_transactions": "لین دین",
-        "tab_budget": "بجٹ",
-        "tab_report": "رپورٹ",
-        "tab_settings": "ترتیبات",
-        "action_add": "شامل کریں",
-        "action_save": "محفوظ کریں",
-        "action_cancel": "منسوخ",
-        "action_delete": "حذف",
-        "action_edit": "ترمیم",
-        "action_undo": "واپس",
-        "label_income": "آمدنی",
-        "label_expense": "خرچ",
-        "label_savings": "بچت",
-        "settings_title": "ترتیبات",
-        "section_language": "زبان",
-        "section_currency": "کرنسی",
-        "section_wallets": "والٹس",
-        "unlock_button": "ان لاک",
-        "kind_cash": "نقد",
-        "kind_bank": "بینک",
-        "kind_ewallet": "ای والیٹ",
-    },
-    "hi": {
-        "app_name": "वित्त ट्रैकर",
-        "tab_dashboard": "डैशबोर्ड",
-        "tab_transactions": "लेन-देन",
-        "tab_budget": "बजट",
-        "tab_report": "रिपोर्ट",
-        "tab_settings": "सेटिंग्स",
-        "action_add": "जोड़ें",
-        "action_save": "सहेजें",
-        "action_cancel": "रद्द करें",
-        "action_delete": "हटाएँ",
-        "action_edit": "संपादित करें",
-        "action_undo": "पूर्ववत",
-        "label_income": "आय",
-        "label_expense": "व्यय",
-        "label_savings": "बचत",
-        "label_net_balance": "शुद्ध शेष",
-        "settings_title": "सेटिंग्स",
-        "section_language": "भाषा",
-        "section_currency": "मुद्रा",
-        "section_wallets": "वॉलेट",
-        "unlock_button": "अनलॉक",
-        "kind_cash": "नकद",
-        "kind_bank": "बैंक",
-        "kind_ewallet": "ई-वॉलेट",
-    },
-}
+STRING_RE = re.compile(
+    r'<string\s+name="([^"]+)">(.*?)</string>',
+    re.DOTALL,
+)
+PLACEHOLDER_RE = re.compile(r"%\d+\$[sd]|%%")
 
 
-def xml_escape(s: str) -> str:
-    return (
-        s.replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-        .replace('"', '\\"')
-        .replace("'", "\\'")
-    )
+def parse_english(path: Path) -> list[tuple[str, str]]:
+    """Return ordered (name, raw_xml_text) pairs; keep entities/escapes as in source."""
+    text = path.read_text(encoding="utf-8")
+    pairs = STRING_RE.findall(text)
+    if not pairs:
+        raise SystemExit(f"No <string> entries found in {path}")
+    return pairs
 
 
-def write_locale(folder: str, overrides: dict):
-    eng = dict(KEYS)
-    merged = {**eng, **overrides}
-    lines = ['<?xml version="1.0" encoding="utf-8"?>', "<resources>"]
-    for key, _ in KEYS:
-        val = merged[key]
-        lines.append(f'    <string name="{key}">{xml_escape(val)}</string>')
+def to_android_xml_text(value: str) -> str:
+    """Normalize translation text to Android strings.xml conventions.
+
+    - Real newlines become literal \\n
+    - Unescaped " and ' become \\" and \\'
+    - Existing \\", \\', \\n, &amp;, &quot;, %% are left intact (no double-escape)
+    """
+    # Normalize newlines to Android literal \n sequences
+    value = value.replace("\r\n", "\n").replace("\r", "\n").replace("\n", "\\n")
+
+    out: list[str] = []
+    i = 0
+    n = len(value)
+    while i < n:
+        ch = value[i]
+        if ch == "\\" and i + 1 < n:
+            nxt = value[i + 1]
+            # Keep valid Android / common escapes as-is
+            if nxt in {'"', "'", "n", "t", "\\", "@", "?"}:
+                out.append(ch)
+                out.append(nxt)
+                i += 2
+                continue
+        if ch == '"':
+            out.append('\\"')
+            i += 1
+            continue
+        if ch == "'":
+            out.append("\\'")
+            i += 1
+            continue
+        out.append(ch)
+        i += 1
+    return "".join(out)
+
+
+def placeholders(s: str) -> list[str]:
+    return PLACEHOLDER_RE.findall(s)
+
+
+def placeholder_set(s: str) -> set[str]:
+    return set(placeholders(s))
+
+
+def load_locale(folder: str, required_keys: set[str], english: dict[str, str]) -> dict[str, str]:
+    path = TRANSLATIONS_DIR / f"{folder}.json"
+    if not path.exists():
+        raise SystemExit(f"Missing translation file: {path}")
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise SystemExit(f"{path} must be a JSON object")
+    missing = sorted(required_keys - set(data))
+    extra = sorted(set(data) - required_keys)
+    if missing:
+        print(f"warning: {folder}: {len(missing)} missing keys fall back to English, e.g. {missing[:6]}")
+        for key in missing:
+            data[key] = english[key]
+    if "load_template" in data:
+        raise SystemExit(f"{folder}: unexpected obsolete key load_template")
+    if extra:
+        print(f"warning: {folder} has {len(extra)} extra keys (ignored)")
+    return {k: str(data[k]) for k in required_keys}
+
+
+def write_locale_xml(
+    folder: str,
+    ordered_keys: list[str],
+    english: dict[str, str],
+    translations: dict[str, str],
+) -> Path:
+    lines = [
+        '<?xml version="1.0" encoding="utf-8"?>',
+        "<resources>",
+    ]
+    for key in ordered_keys:
+        eng = english[key]
+        raw = translations[key]
+        # Soft-check placeholders (positional args may be reordered)
+        if placeholder_set(eng) != placeholder_set(raw):
+            raise SystemExit(
+                f"{folder}/{key}: placeholder mismatch "
+                f"en={sorted(placeholder_set(eng))} tr={sorted(placeholder_set(raw))}"
+            )
+        text = to_android_xml_text(raw)
+        lines.append(f'    <string name="{key}">{text}</string>')
     lines.append("</resources>")
     lines.append("")
     out_dir = ROOT / f"values-{folder}"
     out_dir.mkdir(parents=True, exist_ok=True)
-    (out_dir / "strings.xml").write_text("\n".join(lines), encoding="utf-8")
-    print("wrote", out_dir)
+    out_path = out_dir / "strings.xml"
+    out_path.write_text("\n".join(lines), encoding="utf-8")
+    return out_path
 
 
-def main():
-    for folder, overrides in LOCALES.items():
-        write_locale(folder, overrides)
-    print("done", len(LOCALES), "locales")
+def main() -> int:
+    pairs = parse_english(ENGLISH_XML)
+    ordered_keys = [k for k, _ in pairs]
+    english = {k: v for k, v in pairs}
+    key_set = set(ordered_keys)
+
+    if "load_template" in key_set:
+        raise SystemExit("English strings.xml unexpectedly contains load_template")
+
+    print(f"English keys: {len(ordered_keys)}")
+
+    written = []
+    for folder in LOCALES:
+        translations = load_locale(folder, key_set, english)
+        # Ensure new critical keys exist
+        for must in (
+            "section_profiles",
+            "fetch_live_rates",
+            "cat_food",
+            "tpl_student_label",
+            "theme_classic",
+            "msg_switched_profile",
+        ):
+            if must not in translations:
+                raise SystemExit(f"{folder}: missing required key {must}")
+        path = write_locale_xml(folder, ordered_keys, english, translations)
+        written.append((folder, path))
+        print(f"wrote values-{folder}/strings.xml ({len(ordered_keys)} keys)")
+
+    print(f"done: {len(written)} locales, {len(ordered_keys)} keys each")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

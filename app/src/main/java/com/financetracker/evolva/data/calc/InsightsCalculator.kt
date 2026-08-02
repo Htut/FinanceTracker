@@ -1,5 +1,8 @@
 package com.financetracker.evolva.data.calc
 
+import android.content.Context
+import com.financetracker.evolva.R
+import com.financetracker.evolva.data.locale.CategoryLabels
 import com.financetracker.evolva.data.model.Budget
 import com.financetracker.evolva.data.model.RecurringRule
 import com.financetracker.evolva.data.model.Transaction
@@ -12,13 +15,14 @@ import kotlin.math.abs
 object InsightsCalculator {
 
     fun build(
+        context: Context,
         transactions: List<Transaction>,
         budgets: List<Budget>,
         recurringRules: List<RecurringRule>,
         fmt: (Double) -> String
     ): List<String> {
         if (transactions.isEmpty()) {
-            return listOf("Add your first income, expense, or savings entry to see insights here.")
+            return listOf(context.getString(R.string.insight_empty))
         }
 
         val items = mutableListOf<String>()
@@ -27,14 +31,20 @@ object InsightsCalculator {
 
         if (avg.months > 0) {
             items.add(
-                "On average you earn ${fmt(avg.income)} and spend ${fmt(avg.expense)} per month " +
-                    "(across ${avg.months} month${if (avg.months == 1) "" else "s"} of data)."
+                context.getString(
+                    R.string.insight_avg,
+                    fmt(avg.income),
+                    fmt(avg.expense),
+                    avg.months
+                )
             )
         }
 
         if (totals.income > 0) {
             val rate = (totals.savings / totals.income) * 100
-            items.add("You're saving ${"%.1f".format(rate)}% of your income.")
+            items.add(
+                context.getString(R.string.insight_saving_rate, "%.1f".format(rate))
+            )
         }
 
         val byCategory = transactions
@@ -42,7 +52,13 @@ object InsightsCalculator {
             .groupBy { it.category }
             .mapValues { (_, txs) -> txs.sumOf { it.homeAmount() } }
         byCategory.entries.maxByOrNull { it.value }?.let { (cat, amount) ->
-            items.add("Your biggest expense category is $cat at ${fmt(amount)}.")
+            items.add(
+                context.getString(
+                    R.string.insight_biggest_expense,
+                    CategoryLabels.display(context, cat),
+                    fmt(amount)
+                )
+            )
         }
 
         val lastTwoMonths = FinanceCalculator.lastNMonths(2)
@@ -51,39 +67,76 @@ object InsightsCalculator {
         if (lastMonthSpend > 0) {
             val change = ((thisMonthSpend - lastMonthSpend) / lastMonthSpend) * 100
             if (abs(change) >= 1) {
-                items.add("Spending is ${if (change > 0) "up" else "down"} ${"%.1f".format(abs(change))}% vs. last month.")
+                val pct = "%.1f".format(abs(change))
+                items.add(
+                    context.getString(
+                        if (change > 0) R.string.insight_spend_up else R.string.insight_spend_down,
+                        pct
+                    )
+                )
             }
         }
 
         items.add(
-            if (totals.net < 0) "You're spending more than you earn this period — net balance is ${fmt(totals.net)}."
-            else "Net balance is positive at ${fmt(totals.net)}."
+            if (totals.net < 0) {
+                context.getString(R.string.insight_net_negative, fmt(totals.net))
+            } else {
+                context.getString(R.string.insight_net_positive, fmt(totals.net))
+            }
         )
 
         if (totals.transferIn > 0 || totals.transferOut > 0) {
             val netText = (if (totals.transferNet >= 0) "+" else "") + fmt(totals.transferNet)
             items.add(
-                "You've sent ${fmt(totals.transferOut)} and received ${fmt(totals.transferIn)} in transfers " +
-                    "with family/friends (net $netText)."
+                context.getString(
+                    R.string.insight_transfers,
+                    fmt(totals.transferOut),
+                    fmt(totals.transferIn),
+                    netText
+                )
             )
         }
 
         val activeRecurring = recurringRules.count { it.active }
         if (activeRecurring > 0) {
-            items.add("You have $activeRecurring recurring transaction${if (activeRecurring == 1) "" else "s"} set up to auto-post each month.")
+            items.add(context.getString(R.string.insight_recurring, activeRecurring))
         }
 
         val currentMonth = YearMonth.now()
         data class BudgetStatus(val category: String, val limit: Double, val spent: Double)
         val withBudget = budgets.filter { it.limit > 0 }.map {
-            BudgetStatus(it.category, it.limit, FinanceCalculator.spendForCategoryMonth(transactions, it.category, currentMonth))
+            BudgetStatus(
+                it.category,
+                it.limit,
+                FinanceCalculator.spendForCategoryMonth(transactions, it.category, currentMonth)
+            )
         }
         val over = withBudget.filter { it.spent >= it.limit }
         val near = withBudget.filter { it.spent < it.limit && it.spent / it.limit >= 0.8 }
         when {
-            over.size == 1 -> items.add("You're over budget on ${over[0].category} this month — ${fmt(over[0].spent)} of ${fmt(over[0].limit)}.")
-            over.size > 1 -> items.add("You're over budget on ${over.size} categories this month: ${over.joinToString(", ") { it.category }}.")
-            near.isNotEmpty() -> items.add("You're close to your ${near[0].category} budget this month — ${fmt(near[0].spent)} of ${fmt(near[0].limit)}.")
+            over.size == 1 -> items.add(
+                context.getString(
+                    R.string.insight_over_one,
+                    CategoryLabels.display(context, over[0].category),
+                    fmt(over[0].spent),
+                    fmt(over[0].limit)
+                )
+            )
+            over.size > 1 -> items.add(
+                context.getString(
+                    R.string.insight_over_many,
+                    over.size,
+                    over.joinToString(", ") { CategoryLabels.display(context, it.category) }
+                )
+            )
+            near.isNotEmpty() -> items.add(
+                context.getString(
+                    R.string.insight_near,
+                    CategoryLabels.display(context, near[0].category),
+                    fmt(near[0].spent),
+                    fmt(near[0].limit)
+                )
+            )
         }
 
         return items

@@ -105,7 +105,7 @@ class ActiveProfileSession(
     /**
      * Creates a template profile, seeds generated data, and switches to it.
      */
-    suspend fun setupTemplate(template: AppTemplate): TrackerProfile = mutex.withLock {
+    suspend fun setupTemplate(template: AppTemplate, displayName: String): TrackerProfile = mutex.withLock {
         val existing = appSettings.profiles.first()
         if (existing.any { it.templateId == template.id }) {
             throw IllegalStateException("Template already set up")
@@ -114,7 +114,7 @@ class ActiveProfileSession(
             id = UUID.randomUUID().toString(),
             kind = ProfileKind.TEMPLATE,
             templateId = template.id,
-            displayName = template.label
+            displayName = displayName
         )
         appSettings.addTemplateProfile(profile)
         openBindingLocked(profile.id)
@@ -129,14 +129,30 @@ class ActiveProfileSession(
 
     suspend fun deleteTemplateProfile(profileId: String) = mutex.withLock {
         require(profileId != ProfileIds.PERSONAL) { "Personal profile cannot be deleted" }
+        val receiptPaths = mutableListOf<String>()
         val wasActive = _binding.value?.profile?.id == profileId
         if (wasActive) {
+            receiptPaths += requireRepository().transactions.first().mapNotNull { it.receiptUri }
             openBindingLocked(ProfileIds.PERSONAL)
             appSettings.setActiveProfileId(ProfileIds.PERSONAL)
             requireRepository().ensureDefaultAccounts()
+        } else {
+            withContext(Dispatchers.IO) {
+                val db = ProfileDatabaseProvider.open(appContext, profileId)
+                try {
+                    val paths = FinanceRepository(db.financeDao()).transactions.first()
+                        .mapNotNull { it.receiptUri }
+                    receiptPaths += paths
+                } finally {
+                    db.close()
+                }
+            }
         }
         appSettings.removeProfile(profileId)
         withContext(Dispatchers.IO) {
+            receiptPaths.forEach { path ->
+                com.financetracker.evolva.data.receipt.ReceiptStore.deleteIfOwned(appContext, path)
+            }
             ProfileDatabaseProvider.deleteDatabase(appContext, profileId)
             ProfileSettingsStore.deleteFiles(appContext, profileId)
         }

@@ -30,7 +30,6 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.financetracker.evolva.R
-import com.financetracker.evolva.data.AppConstants
 import com.financetracker.evolva.data.security.DeviceCredentialAuth
 import com.financetracker.evolva.ui.theme.FinanceColors
 
@@ -60,7 +59,7 @@ fun AppLockScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = AppConstants.APP_NAME,
+            text = stringResource(R.string.app_name),
             fontSize = 22.sp,
             fontWeight = FontWeight.SemiBold,
             color = FinanceColors.Text
@@ -101,11 +100,13 @@ fun AppLockScreen(
             Text(stringResource(R.string.unlock_button))
         }
 
+        val biometricTitle = stringResource(R.string.unlock_biometric_title, stringResource(R.string.app_name))
+        val biometricDesc = stringResource(R.string.unlock_biometric_desc)
         val confirmIntent = activity?.let { act ->
             DeviceCredentialAuth.createConfirmIntent(
                 act,
-                title = "Unlock ${AppConstants.APP_NAME}",
-                description = "Confirm with your device lock"
+                title = biometricTitle,
+                description = biometricDesc
             )
         }
         if (confirmIntent != null) {

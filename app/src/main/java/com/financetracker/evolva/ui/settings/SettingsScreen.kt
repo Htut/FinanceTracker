@@ -100,6 +100,11 @@ fun SettingsScreen(viewModel: MainViewModel) {
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = SettingsTab.entries
     val activeProfile by viewModel.activeProfile.collectAsState()
+    val activeProfileLabel = if (activeProfile.kind == ProfileKind.PERSONAL) {
+        stringResource(R.string.profile_my_tracker)
+    } else {
+        activeProfile.displayName
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
         Text(
@@ -110,7 +115,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
             modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 2.dp)
         )
         Text(
-            stringResource(R.string.active_profile_label, activeProfile.displayName),
+            stringResource(R.string.active_profile_label, activeProfileLabel),
             fontSize = 13.sp,
             color = FinanceColors.TextSoft,
             modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp)
@@ -221,7 +226,8 @@ private fun GeneralSettingsTab(viewModel: MainViewModel) {
             ExchangeRatesSection(
                 homeCurrency = currency,
                 exchangeRates = exchangeRates,
-                onSave = viewModel::setExchangeRate
+                onSave = viewModel::setExchangeRate,
+                onFetchLive = viewModel::fetchLiveExchangeRates
             )
         }
         item {
@@ -302,7 +308,8 @@ private fun GeneralSettingsTab(viewModel: MainViewModel) {
 private fun ExchangeRatesSection(
     homeCurrency: AppCurrency,
     exchangeRates: Map<String, Double>,
-    onSave: (String, Double) -> Unit
+    onSave: (String, Double) -> Unit,
+    onFetchLive: () -> Unit
 ) {
     var values by remember(homeCurrency, exchangeRates) {
         mutableStateOf(
@@ -320,6 +327,13 @@ private fun ExchangeRatesSection(
             color = FinanceColors.TextSoft
         )
         Spacer(Modifier.height(8.dp))
+        OutlinedButton(
+            onClick = onFetchLive,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(stringResource(R.string.fetch_live_rates))
+        }
+        Spacer(Modifier.height(10.dp))
         AppCurrency.entries.filter { it != homeCurrency }.forEach { foreign ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -440,13 +454,13 @@ private fun ThemeSwatchCard(
         }
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            theme.label,
+            stringResource(theme.labelRes),
             fontSize = 13.sp,
             fontWeight = FontWeight.SemiBold,
             color = palette.text
         )
         Text(
-            theme.subtitle,
+            stringResource(theme.subtitleRes),
             fontSize = 11.sp,
             color = palette.textSoft,
             maxLines = 2
@@ -491,9 +505,9 @@ private fun DataSettingsTab(viewModel: MainViewModel) {
             )
         }
         item {
-            SectionCard(title = "Custom expense types") {
+            SectionCard(title = stringResource(R.string.section_custom_expense_types)) {
                 Text(
-                    "Add your own expense categories. They appear in Transactions and Budgets, and are included in backup/restore.",
+                    stringResource(R.string.custom_expense_help),
                     fontSize = 12.sp,
                     color = FinanceColors.TextSoft
                 )
@@ -505,7 +519,7 @@ private fun DataSettingsTab(viewModel: MainViewModel) {
                     OutlinedTextField(
                         value = newExpenseType,
                         onValueChange = { newExpenseType = it },
-                        label = { Text("New type") },
+                        label = { Text(stringResource(R.string.new_type)) },
                         singleLine = true,
                         modifier = Modifier.weight(1f)
                     )
@@ -518,12 +532,12 @@ private fun DataSettingsTab(viewModel: MainViewModel) {
                                 }
                             }
                         }
-                    ) { Text("Add") }
+                    ) { Text(stringResource(R.string.action_add)) }
                 }
                 if (customExpenseCategories.isEmpty()) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        "No custom types yet. Built-in types (Food, Transport, …) stay available.",
+                        stringResource(R.string.custom_expense_empty),
                         fontSize = 12.sp,
                         color = FinanceColors.TextSoft
                     )
@@ -539,7 +553,7 @@ private fun DataSettingsTab(viewModel: MainViewModel) {
                         ) {
                             Text(name, fontSize = 13.5.sp, color = FinanceColors.Text)
                             TextButton(onClick = { viewModel.removeCustomExpenseCategory(name) }) {
-                                Text("Remove", color = FinanceColors.Expense)
+                                Text(stringResource(R.string.action_remove), color = FinanceColors.Expense)
                             }
                         }
                         HorizontalDivider(color = FinanceColors.Border)
@@ -572,10 +586,10 @@ private fun DataSettingsTab(viewModel: MainViewModel) {
         }
 
         item {
-            SectionCard(title = "Recurring Transactions") {
+            SectionCard(title = stringResource(R.string.section_recurring)) {
                 if (recurringRules.isEmpty()) {
                     Text(
-                        "No recurring transactions yet. Turn on \"Repeat monthly\" when adding a transaction to create one.",
+                        stringResource(R.string.recurring_empty),
                         fontSize = 13.sp, color = FinanceColors.TextSoft
                     )
                 } else {
@@ -651,8 +665,8 @@ private fun TemplateProfileCard(
     }
     var pendingDelete by remember { mutableStateOf<TrackerProfile?>(null) }
 
-    SectionCard(title = template.label) {
-        Text(template.description, fontSize = 12.sp, color = FinanceColors.TextSoft)
+    SectionCard(title = stringResource(template.labelRes)) {
+        Text(stringResource(template.descriptionRes), fontSize = 12.sp, color = FinanceColors.TextSoft)
         Spacer(modifier = Modifier.height(10.dp))
         if (instance == null) {
             Button(onClick = { viewModel.setupTemplateProfile(template) }) {
@@ -743,11 +757,13 @@ private fun BackupSettingsTab(viewModel: MainViewModel) {
             val text = context.contentResolver.openInputStream(it)?.bufferedReader()?.use { r -> r.readText() }
             if (text != null) {
                 when (val result = viewModel.importBackup(text, pendingReplace)) {
-                    is ImportResult.Success -> importResultMessage = "Imported ${result.transactionCount} transactions."
-                    ImportResult.Invalid -> importResultMessage = "That file doesn't look like a Finance Tracker backup."
+                    is ImportResult.Success -> importResultMessage =
+                        context.getString(R.string.import_success, result.transactionCount)
+                    ImportResult.Invalid -> importResultMessage =
+                        context.getString(R.string.import_invalid)
                 }
             } else {
-                importResultMessage = "Couldn't read that file."
+                importResultMessage = context.getString(R.string.import_read_fail)
             }
         }
     }
@@ -758,9 +774,9 @@ private fun BackupSettingsTab(viewModel: MainViewModel) {
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            SectionCard(title = "Backup, Restore & Share") {
+            SectionCard(title = stringResource(R.string.section_backup)) {
                 Text(
-                    "Export a backup file to keep a copy of your data or send it to a family member. Import a backup to restore it, or merge someone else's data into yours.",
+                    stringResource(R.string.backup_help),
                     fontSize = 12.5.sp, color = FinanceColors.TextSoft
                 )
                 Spacer(Modifier.height(6.dp))
@@ -771,10 +787,10 @@ private fun BackupSettingsTab(viewModel: MainViewModel) {
                 Spacer(Modifier.height(12.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = { createJsonLauncher.launch(BackupManager.backupFileName()) }) {
-                        Text("Export JSON")
+                        Text(stringResource(R.string.export_json))
                     }
                     OutlinedButton(onClick = { createCsvLauncher.launch(BackupManager.csvFileName()) }) {
-                        Text("Export CSV")
+                        Text(stringResource(R.string.export_csv))
                     }
                 }
                 Spacer(Modifier.height(10.dp))
@@ -782,11 +798,11 @@ private fun BackupSettingsTab(viewModel: MainViewModel) {
                     OutlinedButton(onClick = {
                         pendingReplace = false
                         openJsonLauncher.launch(arrayOf("application/json", "text/plain", "*/*"))
-                    }) { Text("Import & Merge") }
+                    }) { Text(stringResource(R.string.import_merge)) }
                     OutlinedButton(onClick = {
                         pendingReplace = true
                         openJsonLauncher.launch(arrayOf("application/json", "text/plain", "*/*"))
-                    }) { Text("Import & Replace") }
+                    }) { Text(stringResource(R.string.import_replace)) }
                 }
                 importResultMessage?.let {
                     Spacer(Modifier.height(8.dp))
@@ -811,6 +827,15 @@ private fun SecuritySettingsTab(viewModel: MainViewModel) {
     var passwordDialogError by remember { mutableStateOf<String?>(null) }
     var dangerError by remember { mutableStateOf<String?>(null) }
 
+    val msgDeviceCancelled = stringResource(R.string.device_confirm_cancelled)
+    val msgPasswordCleared = stringResource(R.string.password_cleared)
+    val msgPasswordUpdated = stringResource(R.string.password_updated)
+    val msgPasswordSet = stringResource(R.string.password_set)
+    val msgIncorrectPassword = stringResource(R.string.incorrect_password)
+    val msgConfirmDevice = stringResource(R.string.confirm_device_identity)
+    val msgUnlockBiometricDesc = stringResource(R.string.unlock_biometric_desc)
+    val msgSetScreenLock = stringResource(R.string.set_screen_lock_first)
+
     val deviceCredentialLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -819,7 +844,7 @@ private fun SecuritySettingsTab(viewModel: MainViewModel) {
             showClearConfirm = false
             dangerError = null
         } else {
-            dangerError = "Device confirmation was cancelled or failed."
+            dangerError = msgDeviceCancelled
         }
     }
 
@@ -829,12 +854,12 @@ private fun SecuritySettingsTab(viewModel: MainViewModel) {
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            SectionCard(title = "App Password") {
+            SectionCard(title = stringResource(R.string.section_app_password)) {
                 Text(
                     if (hasPassword) {
-                        "An app password is set. It is required for Danger Zone actions."
+                        stringResource(R.string.app_password_set_help)
                     } else {
-                        "No app password is set (default is blank). You can set one to protect sensitive actions."
+                        stringResource(R.string.app_password_unset_help)
                     },
                     fontSize = 12.5.sp,
                     color = FinanceColors.TextSoft
@@ -844,7 +869,10 @@ private fun SecuritySettingsTab(viewModel: MainViewModel) {
                     passwordDialogError = null
                     showPasswordDialog = true
                 }) {
-                    Text(if (hasPassword) "Change Password" else "Set Password")
+                    Text(
+                        if (hasPassword) stringResource(R.string.change_password)
+                        else stringResource(R.string.set_password)
+                    )
                 }
                 statusMessage?.let {
                     Spacer(Modifier.height(8.dp))
@@ -858,10 +886,9 @@ private fun SecuritySettingsTab(viewModel: MainViewModel) {
         }
 
         item {
-            SectionCard(title = "Danger Zone") {
+            SectionCard(title = stringResource(R.string.section_danger_zone)) {
                 Text(
-                    stringResource(R.string.danger_clear_help) +
-                        " This requires your device screen lock and your app password.",
+                    stringResource(R.string.danger_clear_help),
                     fontSize = 12.5.sp, color = FinanceColors.TextSoft
                 )
                 Spacer(Modifier.height(10.dp))
@@ -871,7 +898,7 @@ private fun SecuritySettingsTab(viewModel: MainViewModel) {
                         showClearConfirm = true
                     },
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = FinanceColors.Expense)
-                ) { Text("Clear All Transactions") }
+                ) { Text(stringResource(R.string.clear_all_transactions)) }
             }
         }
     }
@@ -893,15 +920,15 @@ private fun SecuritySettingsTab(viewModel: MainViewModel) {
                         PasswordChangeResult.Success -> {
                             statusIsError = false
                             statusMessage = when {
-                                clear -> "App password cleared."
-                                hasPassword -> "App password updated."
-                                else -> "App password set."
+                                clear -> msgPasswordCleared
+                                hasPassword -> msgPasswordUpdated
+                                else -> msgPasswordSet
                             }
                             passwordDialogError = null
                             showPasswordDialog = false
                         }
                         PasswordChangeResult.WrongCurrentPassword -> {
-                            passwordDialogError = "Current password is incorrect."
+                            passwordDialogError = msgIncorrectPassword
                         }
                     }
                 }
@@ -921,16 +948,16 @@ private fun SecuritySettingsTab(viewModel: MainViewModel) {
                 scope.launch {
                     val passwordOk = viewModel.verifyAppPassword(appPassword)
                     if (!passwordOk) {
-                        dangerError = "App password is incorrect."
+                        dangerError = msgIncorrectPassword
                         return@launch
                     }
                     val intent = DeviceCredentialAuth.createConfirmIntent(
                         activity = activity,
-                        title = "Confirm device identity",
-                        description = "Unlock with your device PIN, pattern, or password to continue."
+                        title = msgConfirmDevice,
+                        description = msgUnlockBiometricDesc
                     )
                     if (intent == null) {
-                        dangerError = "Set a screen lock (PIN, pattern, or password) on this device first."
+                        dangerError = msgSetScreenLock
                         return@launch
                     }
                     deviceCredentialLauncher.launch(intent)
@@ -945,6 +972,7 @@ private fun AboutSettingsTab() {
     val context = LocalContext.current
     var showAbout by remember { mutableStateOf(false) }
     var showExitConfirm by remember { mutableStateOf(false) }
+    val appName = stringResource(R.string.app_name)
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -952,11 +980,11 @@ private fun AboutSettingsTab() {
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            SectionCard(title = "About") {
+            SectionCard(title = stringResource(R.string.section_about)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Image(
                         painter = painterResource(R.drawable.app_logo),
-                        contentDescription = AppConstants.APP_NAME,
+                        contentDescription = appName,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
                             .size(72.dp)
@@ -965,20 +993,20 @@ private fun AboutSettingsTab() {
                     Spacer(modifier = Modifier.width(14.dp))
                     Column {
                         Text(
-                            AppConstants.APP_NAME,
+                            appName,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = FinanceColors.Text
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            "Version ${AppConstants.APP_VERSION}",
+                            stringResource(R.string.version_label, AppConstants.APP_VERSION),
                             fontSize = 13.sp,
                             color = FinanceColors.TextSoft
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            AppConstants.DEVELOPER_NAME,
+                            stringResource(R.string.developer_name),
                             fontSize = 13.sp,
                             color = FinanceColors.TextSoft
                         )
@@ -986,24 +1014,24 @@ private fun AboutSettingsTab() {
                 }
                 Spacer(modifier = Modifier.height(12.dp))
                 OutlinedButton(onClick = { showAbout = true }) {
-                    Text("About Box")
+                    Text(stringResource(R.string.about_box))
                 }
             }
         }
 
         item {
-            SectionCard(title = "Exit App") {
+            SectionCard(title = stringResource(R.string.section_exit_app)) {
                 Text(
-                    "Close Finance Tracker completely.",
+                    stringResource(R.string.exit_app_help),
                     fontSize = 12.5.sp,
                     color = FinanceColors.TextSoft
                 )
-                Spacer(Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(10.dp))
                 OutlinedButton(
                     onClick = { showExitConfirm = true },
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = FinanceColors.Expense)
                 ) {
-                    Text("Exit App")
+                    Text(stringResource(R.string.section_exit_app))
                 }
             }
         }
@@ -1016,17 +1044,19 @@ private fun AboutSettingsTab() {
     if (showExitConfirm) {
         AlertDialog(
             onDismissRequest = { showExitConfirm = false },
-            title = { Text("Exit App?") },
-            text = { Text("Finance Tracker will close.") },
+            title = { Text(stringResource(R.string.section_exit_app)) },
+            text = { Text(stringResource(R.string.exit_app_confirm)) },
             confirmButton = {
                 TextButton(onClick = {
                     showExitConfirm = false
                     (context as? Activity)?.finishAffinity()
                     exitProcess(0)
-                }) { Text("Exit", color = FinanceColors.Expense) }
+                }) { Text(stringResource(R.string.action_exit), color = FinanceColors.Expense) }
             },
             dismissButton = {
-                TextButton(onClick = { showExitConfirm = false }) { Text("Cancel") }
+                TextButton(onClick = { showExitConfirm = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
             }
         )
     }
@@ -1034,9 +1064,10 @@ private fun AboutSettingsTab() {
 
 @Composable
 private fun AboutBoxDialog(onDismiss: () -> Unit) {
+    val appName = stringResource(R.string.app_name)
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(AppConstants.APP_NAME) },
+        title = { Text(appName) },
         text = {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -1044,7 +1075,7 @@ private fun AboutBoxDialog(onDismiss: () -> Unit) {
             ) {
                 Image(
                     painter = painterResource(R.drawable.app_logo),
-                    contentDescription = AppConstants.APP_NAME,
+                    contentDescription = appName,
                     contentScale = ContentScale.Fit,
                     modifier = Modifier
                         .size(120.dp)
@@ -1052,14 +1083,18 @@ private fun AboutBoxDialog(onDismiss: () -> Unit) {
                 )
                 Spacer(modifier = Modifier.height(14.dp))
                 Text(
-                    "Version ${AppConstants.APP_VERSION}",
+                    stringResource(R.string.version_label, AppConstants.APP_VERSION),
                     fontSize = 14.sp,
                     color = FinanceColors.Text
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("Developer", fontSize = 12.sp, color = FinanceColors.TextSoft)
                 Text(
-                    AppConstants.DEVELOPER_NAME,
+                    stringResource(R.string.label_developer),
+                    fontSize = 12.sp,
+                    color = FinanceColors.TextSoft
+                )
+                Text(
+                    stringResource(R.string.developer_name),
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
                     color = FinanceColors.Text
@@ -1067,7 +1102,7 @@ private fun AboutBoxDialog(onDismiss: () -> Unit) {
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text("OK") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_ok)) }
         }
     )
 }
@@ -1084,17 +1119,23 @@ private fun PasswordDialog(
     var confirmPassword by remember { mutableStateOf("") }
     var localError by remember { mutableStateOf<String?>(null) }
     val shownError = localError ?: error
+    val mismatchError = stringResource(R.string.passwords_mismatch)
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (hasExistingPassword) "Change App Password" else "Set App Password") },
+        title = {
+            Text(
+                if (hasExistingPassword) stringResource(R.string.change_password)
+                else stringResource(R.string.set_password)
+            )
+        },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 if (hasExistingPassword) {
                     OutlinedTextField(
                         value = currentPassword,
                         onValueChange = { currentPassword = it },
-                        label = { Text("Current password") },
+                        label = { Text(stringResource(R.string.current_password)) },
                         visualTransformation = PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                         singleLine = true,
@@ -1104,7 +1145,7 @@ private fun PasswordDialog(
                 OutlinedTextField(
                     value = newPassword,
                     onValueChange = { newPassword = it },
-                    label = { Text("New password") },
+                    label = { Text(stringResource(R.string.new_password)) },
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     singleLine = true,
@@ -1113,7 +1154,7 @@ private fun PasswordDialog(
                 OutlinedTextField(
                     value = confirmPassword,
                     onValueChange = { confirmPassword = it },
-                    label = { Text("Confirm new password") },
+                    label = { Text(stringResource(R.string.confirm_password)) },
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     singleLine = true,
@@ -1125,16 +1166,15 @@ private fun PasswordDialog(
         confirmButton = {
             TextButton(onClick = {
                 if (newPassword != confirmPassword) {
-                    localError = "New passwords do not match."
+                    localError = mismatchError
                     return@TextButton
                 }
                 if (newPassword.isEmpty()) {
-                    localError = "Enter a new password, or use Clear Password."
                     return@TextButton
                 }
                 localError = null
                 onSubmit(currentPassword, newPassword, false)
-            }) { Text("Save") }
+            }) { Text(stringResource(R.string.action_save)) }
         },
         dismissButton = {
             Row {
@@ -1142,9 +1182,11 @@ private fun PasswordDialog(
                     TextButton(onClick = {
                         localError = null
                         onSubmit(currentPassword, "", true)
-                    }) { Text("Clear Password", color = FinanceColors.Expense) }
+                    }) {
+                        Text(stringResource(R.string.clear_password), color = FinanceColors.Expense)
+                    }
                 }
-                TextButton(onClick = onDismiss) { Text("Cancel") }
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
             }
         }
     )
@@ -1152,7 +1194,7 @@ private fun PasswordDialog(
 
 @Composable
 private fun DangerZoneConfirmDialog(
-    hasAppPassword: Boolean,
+    @Suppress("UNUSED_PARAMETER") hasAppPassword: Boolean,
     error: String?,
     onDismiss: () -> Unit,
     onContinue: (String) -> Unit
@@ -1161,23 +1203,18 @@ private fun DangerZoneConfirmDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Clear all transactions?") },
+        title = { Text(stringResource(R.string.clear_all_transactions)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(
-                    "This permanently deletes every transaction. Budgets and recurring rules are kept. " +
-                        "Confirm with your app password, then your device screen lock.",
+                    stringResource(R.string.danger_clear_help),
                     fontSize = 13.sp,
                     color = FinanceColors.TextSoft
                 )
                 OutlinedTextField(
                     value = appPassword,
                     onValueChange = { appPassword = it },
-                    label = {
-                        Text(
-                            if (hasAppPassword) "App password" else "App password (blank if unset)"
-                        )
-                    },
+                    label = { Text(stringResource(R.string.app_password_label)) },
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     singleLine = true,
@@ -1188,11 +1225,11 @@ private fun DangerZoneConfirmDialog(
         },
         confirmButton = {
             TextButton(onClick = { onContinue(appPassword) }) {
-                Text("Continue", color = FinanceColors.Expense)
+                Text(stringResource(R.string.action_continue), color = FinanceColors.Expense)
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
         }
     )
 }
@@ -1217,17 +1254,25 @@ private fun RecurringRuleRow(
                 "$arrow ${rule.category}"
             } else rule.category
             Text(label, fontSize = 13.5.sp, color = FinanceColors.Text)
-            Text("Day ${rule.day} of each month · $formattedAmount", fontSize = 12.sp, color = FinanceColors.TextSoft)
+            Text(
+                stringResource(R.string.recurring_day_of_month, rule.day, formattedAmount),
+                fontSize = 12.sp,
+                color = FinanceColors.TextSoft
+            )
             if (!rule.active) {
-                Text("Paused", fontSize = 11.5.sp, color = FinanceColors.Warn)
+                Text(
+                    stringResource(R.string.recurring_paused),
+                    fontSize = 11.5.sp,
+                    color = FinanceColors.Warn
+                )
             }
         }
         TextButton(onClick = onEdit) {
-            Text("Edit")
+            Text(stringResource(R.string.action_edit))
         }
         Switch(checked = rule.active, onCheckedChange = { onToggleActive() })
         TextButton(onClick = onDelete) {
-            Text("Delete", color = FinanceColors.Expense)
+            Text(stringResource(R.string.action_delete), color = FinanceColors.Expense)
         }
     }
 }

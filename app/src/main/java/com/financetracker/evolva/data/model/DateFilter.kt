@@ -19,8 +19,8 @@ sealed class DateFilter {
         is Range -> !date.isBefore(start) && !date.isAfter(end)
     }
 
-    fun label(): String = when (this) {
-        All -> "All dates"
+    fun label(allDatesLabel: String): String = when (this) {
+        All -> allDatesLabel
         is Month -> month.month.getDisplayName(TextStyle.FULL, Locale.getDefault()) + " " + month.year
         is Year -> year.toString()
         is Range -> {

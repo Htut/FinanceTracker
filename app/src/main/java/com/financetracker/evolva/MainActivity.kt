@@ -17,7 +17,7 @@ class MainActivity : AppCompatActivity() {
 
     private val viewModel: MainViewModel by viewModels {
         val app = application as FinanceApp
-        MainViewModelFactory(app.profileSession, app.settingsDataStore)
+        MainViewModelFactory(app, app.profileSession, app.settingsDataStore)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
