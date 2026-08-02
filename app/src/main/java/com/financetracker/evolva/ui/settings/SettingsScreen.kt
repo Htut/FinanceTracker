@@ -17,8 +17,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.ScrollableTabRow
@@ -42,7 +42,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.fragment.app.FragmentActivity
 import com.financetracker.evolva.data.AppConstants
 import com.financetracker.evolva.data.backup.BackupManager
 import com.financetracker.evolva.data.model.AppCurrency
@@ -266,7 +265,7 @@ private fun BackupSettingsTab(viewModel: MainViewModel) {
 private fun SecuritySettingsTab(viewModel: MainViewModel) {
     val hasPassword by viewModel.hasAppPassword.collectAsState()
     val context = LocalContext.current
-    val activity = context as FragmentActivity
+    val activity = context as Activity
     val scope = rememberCoroutineScope()
 
     var showPasswordDialog by remember { mutableStateOf(false) }
@@ -275,6 +274,20 @@ private fun SecuritySettingsTab(viewModel: MainViewModel) {
     var statusIsError by remember { mutableStateOf(false) }
     var passwordDialogError by remember { mutableStateOf<String?>(null) }
     var dangerError by remember { mutableStateOf<String?>(null) }
+
+    val deviceCredentialLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            viewModel.clearAllTransactions()
+            showClearConfirm = false
+            dangerError = null
+            statusIsError = false
+            statusMessage = "All transactions cleared."
+        } else {
+            dangerError = "Device confirmation was cancelled or failed."
+        }
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -377,21 +390,16 @@ private fun SecuritySettingsTab(viewModel: MainViewModel) {
                         dangerError = "App password is incorrect."
                         return@launch
                     }
-                    DeviceCredentialAuth.authenticate(
+                    val intent = DeviceCredentialAuth.createConfirmIntent(
                         activity = activity,
                         title = "Confirm device identity",
-                        subtitle = "Unlock with your device PIN, pattern, password, or biometrics to continue.",
-                        onSuccess = {
-                            viewModel.clearAllTransactions()
-                            showClearConfirm = false
-                            dangerError = null
-                            statusIsError = false
-                            statusMessage = "All transactions cleared."
-                        },
-                        onError = { message ->
-                            dangerError = message
-                        }
+                        description = "Unlock with your device PIN, pattern, or password to continue."
                     )
+                    if (intent == null) {
+                        dangerError = "Set a screen lock (PIN, pattern, or password) on this device first."
+                        return@launch
+                    }
+                    deviceCredentialLauncher.launch(intent)
                 }
             }
         )
