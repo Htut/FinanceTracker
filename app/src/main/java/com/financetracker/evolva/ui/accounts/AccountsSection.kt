@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.financetracker.evolva.R
 import com.financetracker.evolva.data.calc.FinanceCalculator
+import com.financetracker.evolva.data.locale.AccountLabels
 import com.financetracker.evolva.data.model.Account
 import com.financetracker.evolva.data.model.AccountKind
 import com.financetracker.evolva.data.model.AppCurrency
@@ -44,6 +45,7 @@ fun AccountsSection(
     onSave: (Account) -> Unit,
     onDelete: (String) -> Unit
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     var editing by remember { mutableStateOf<Account?>(null) }
     var name by remember { mutableStateOf("") }
     var kind by remember { mutableStateOf(AccountKind.CASH) }
@@ -67,11 +69,6 @@ fun AccountsSection(
         Spacer(modifier = Modifier.height(10.dp))
         accounts.filterNot { it.archived }.forEach { account ->
             val balance = FinanceCalculator.accountBalance(account, transactions)
-            val kindLabel = when (account.kind) {
-                AccountKind.CASH -> stringResource(R.string.kind_cash)
-                AccountKind.BANK -> stringResource(R.string.kind_bank)
-                AccountKind.EWALLET -> stringResource(R.string.kind_ewallet)
-            }
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -80,9 +77,14 @@ fun AccountsSection(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(account.name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = FinanceColors.Text)
                     Text(
-                        kindLabel,
+                        AccountLabels.display(context, account),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = FinanceColors.Text
+                    )
+                    Text(
+                        AccountLabels.kindLabel(context, account.kind),
                         fontSize = 12.sp,
                         color = FinanceColors.TextSoft
                     )
@@ -117,15 +119,10 @@ fun AccountsSection(
         Spacer(modifier = Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             AccountKind.entries.forEach { k ->
-                val kindLabel = when (k) {
-                    AccountKind.CASH -> stringResource(R.string.kind_cash)
-                    AccountKind.BANK -> stringResource(R.string.kind_bank)
-                    AccountKind.EWALLET -> stringResource(R.string.kind_ewallet)
-                }
                 FilterChip(
                     selected = kind == k,
                     onClick = { kind = k },
-                    label = { Text(kindLabel) }
+                    label = { Text(AccountLabels.kindLabel(context, k)) }
                 )
             }
         }
@@ -144,10 +141,17 @@ fun AccountsSection(
                     val opening = openingText.toDoubleOrNull() ?: 0.0
                     val trimmed = name.trim()
                     if (trimmed.isEmpty()) return@Button
+                    val id = editing?.id ?: UUID.randomUUID().toString()
+                    val storedName = when (id) {
+                        Account.ID_CASH -> "Cash"
+                        Account.ID_BANK -> "Bank"
+                        Account.ID_EWALLET -> "E-Wallet"
+                        else -> trimmed
+                    }
                     onSave(
                         Account(
-                            id = editing?.id ?: UUID.randomUUID().toString(),
-                            name = trimmed,
+                            id = id,
+                            name = storedName,
                             kind = kind,
                             openingBalance = opening,
                             archived = false

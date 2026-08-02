@@ -11,6 +11,7 @@ import com.financetracker.evolva.MainActivity
 import com.financetracker.evolva.R
 import com.financetracker.evolva.data.calc.BudgetState
 import com.financetracker.evolva.data.calc.FinanceCalculator
+import com.financetracker.evolva.data.locale.CategoryLabels
 import com.financetracker.evolva.data.model.AppCurrency
 import com.financetracker.evolva.data.model.Budget
 import com.financetracker.evolva.data.model.Transaction
@@ -26,16 +27,15 @@ data class BudgetAlert(
 
 object BudgetAlertNotifier {
     const val CHANNEL_ID = "budget_alerts"
-    private const val CHANNEL_NAME = "Budget alerts"
 
     fun ensureChannel(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java) ?: return
         val channel = NotificationChannel(
             CHANNEL_ID,
-            CHANNEL_NAME,
+            context.getString(R.string.notif_channel_budget),
             NotificationManager.IMPORTANCE_DEFAULT
         ).apply {
-            description = "Alerts when a category budget is near or over its limit"
+            description = context.getString(R.string.notif_channel_budget_desc)
         }
         manager.createNotificationChannel(channel)
     }
@@ -73,12 +73,16 @@ object BudgetAlertNotifier {
         )
 
         alerts.forEach { alert ->
+            val categoryLabel = CategoryLabels.display(context, alert.category)
             val title = when (alert.state) {
-                BudgetState.OVER -> "Over budget: ${alert.category}"
-                else -> "Near limit: ${alert.category}"
+                BudgetState.OVER -> context.getString(R.string.notif_over_budget, categoryLabel)
+                else -> context.getString(R.string.notif_near_limit, categoryLabel)
             }
-            val text =
-                "${formatAmount(alert.spent, currency)} of ${formatAmount(alert.limit, currency)} spent this month"
+            val text = context.getString(
+                R.string.notif_budget_spent,
+                formatAmount(alert.spent, currency),
+                formatAmount(alert.limit, currency)
+            )
             val notification = NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(R.mipmap.ic_launcher)
                 .setContentTitle(title)

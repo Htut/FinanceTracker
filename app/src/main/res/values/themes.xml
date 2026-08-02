@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.FinanceTracker" parent="android:Theme.Material.Light.NoActionBar">
+    <style name="Theme.FinanceTracker" parent="Theme.AppCompat.Light.NoActionBar">
         <item name="android:windowBackground">@color/splash_background</item>
         <item name="android:statusBarColor">#0B2A4A</item>
         <item name="android:windowLightStatusBar">false</item>

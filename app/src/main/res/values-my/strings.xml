@@ -338,4 +338,9 @@
     <string name="insight_over_one">ဤလတွင် %1$s ဘတ်ဂျက်ကျော်နေသည် — %3$s အနက် %2$s။</string>
     <string name="insight_over_many">ဤလတွင် အမျိုးအစား %1$d ခု ဘတ်ဂျက်ကျော်နေသည်: %2$s။</string>
     <string name="insight_near">ဤလတွင် %1$s ဘတ်ဂျက်နီးကပ်နေသည် — %3$s အနက် %2$s။</string>
+    <string name="notif_channel_budget">ဘတ်ဂျက်သတိပေးချက်များ</string>
+    <string name="notif_channel_budget_desc">အမျိုးအစားဘတ်ဂျက်နီးကပ် သို့မဟုတ် ကျော်လွန်သည့်အခါ သတိပေးသည်</string>
+    <string name="notif_over_budget">ဘတ်ဂျက်ကျော်: %1$s</string>
+    <string name="notif_near_limit">ကန့်သတ်နီး: %1$s</string>
+    <string name="notif_budget_spent">ဤလတွင် %2$s အနက် %1$s သုံးပြီး</string>
 </resources>

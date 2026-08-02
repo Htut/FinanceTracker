@@ -338,4 +338,9 @@
     <string name="insight_over_one">You\'re over budget on %1$s this month — %2$s of %3$s.</string>
     <string name="insight_over_many">You\'re over budget on %1$d categories this month: %2$s.</string>
     <string name="insight_near">You\'re close to your %1$s budget this month — %2$s of %3$s.</string>
+    <string name="notif_channel_budget">Cảnh báo ngân sách</string>
+    <string name="notif_channel_budget_desc">Cảnh báo khi danh mục gần hoặc vượt hạn mức</string>
+    <string name="notif_over_budget">Vượt ngân sách: %1$s</string>
+    <string name="notif_near_limit">Gần hạn mức: %1$s</string>
+    <string name="notif_budget_spent">Đã chi %1$s / %2$s tháng này</string>
 </resources>

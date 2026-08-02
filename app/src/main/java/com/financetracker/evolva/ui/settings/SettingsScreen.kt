@@ -8,8 +8,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -145,7 +143,6 @@ fun SettingsScreen(viewModel: MainViewModel) {
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun GeneralSettingsTab(viewModel: MainViewModel) {
     val context = LocalContext.current
@@ -180,11 +177,8 @@ private fun GeneralSettingsTab(viewModel: MainViewModel) {
         }
         item {
             SectionCard(title = stringResource(R.string.section_language)) {
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    AppLanguage.entries.forEach { lang ->
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(AppLanguage.entries.toList(), key = { it.tag }) { lang ->
                         FilterChip(
                             selected = language == lang,
                             onClick = { viewModel.setLanguage(lang) },
@@ -202,11 +196,8 @@ private fun GeneralSettingsTab(viewModel: MainViewModel) {
         }
         item {
             SectionCard(title = stringResource(R.string.section_currency)) {
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    AppCurrency.entries.forEach { c ->
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(AppCurrency.entries.toList(), key = { it.code }) { c ->
                         FilterChip(
                             selected = currency == c,
                             onClick = { viewModel.setCurrency(c) },
@@ -277,11 +268,8 @@ private fun GeneralSettingsTab(viewModel: MainViewModel) {
                     color = FinanceColors.TextSoft
                 )
                 Spacer(modifier = Modifier.height(10.dp))
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    autoCloseOptions.forEach { seconds ->
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(autoCloseOptions, key = { it }) { seconds ->
                         FilterChip(
                             selected = filterAutoCloseSeconds == seconds,
                             onClick = { viewModel.setFilterAutoCloseSeconds(seconds) },

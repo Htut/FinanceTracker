@@ -336,5 +336,10 @@
   "insight_recurring": "You have %1$d recurring transaction(s) set up to auto-post each month.",
   "insight_over_one": "You're over budget on %1$s this month — %2$s of %3$s.",
   "insight_over_many": "You're over budget on %1$d categories this month: %2$s.",
-  "insight_near": "You're close to your %1$s budget this month — %2$s of %3$s."
+  "insight_near": "You're close to your %1$s budget this month — %2$s of %3$s.",
+  "notif_channel_budget": "Cảnh báo ngân sách",
+  "notif_channel_budget_desc": "Cảnh báo khi danh mục gần hoặc vượt hạn mức",
+  "notif_over_budget": "Vượt ngân sách: %1$s",
+  "notif_near_limit": "Gần hạn mức: %1$s",
+  "notif_budget_spent": "Đã chi %1$s / %2$s tháng này"
 }

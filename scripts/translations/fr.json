@@ -336,5 +336,10 @@
   "insight_recurring": "You have %1$d recurring transaction(s) set up to auto-post each month.",
   "insight_over_one": "You're over budget on %1$s this month — %2$s of %3$s.",
   "insight_over_many": "You're over budget on %1$d categories this month: %2$s.",
-  "insight_near": "You're close to your %1$s budget this month — %2$s of %3$s."
+  "insight_near": "You're close to your %1$s budget this month — %2$s of %3$s.",
+  "notif_channel_budget": "Alertes budget",
+  "notif_channel_budget_desc": "Alertes quand un budget de catégorie approche ou dépasse la limite",
+  "notif_over_budget": "Budget dépassé : %1$s",
+  "notif_near_limit": "Proche de la limite : %1$s",
+  "notif_budget_spent": "%1$s sur %2$s dépensés ce mois"
 }

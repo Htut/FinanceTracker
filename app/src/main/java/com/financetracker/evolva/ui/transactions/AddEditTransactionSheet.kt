@@ -53,6 +53,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.financetracker.evolva.R
+import com.financetracker.evolva.data.locale.AccountLabels
 import com.financetracker.evolva.data.locale.CategoryLabels
 import com.financetracker.evolva.data.model.Categories
 import com.financetracker.evolva.data.model.Account
@@ -194,7 +195,8 @@ fun AddEditTransactionSheet(
             ) {
                 val selectedAccount = accounts.find { it.id == accountId }
                 OutlinedTextField(
-                    value = selectedAccount?.name ?: stringResource(R.string.label_unspecified),
+                    value = selectedAccount?.let { AccountLabels.display(context, it) }
+                        ?: stringResource(R.string.label_unspecified),
                     onValueChange = {},
                     readOnly = true,
                     label = { Text(stringResource(R.string.label_account)) },
@@ -209,7 +211,7 @@ fun AddEditTransactionSheet(
                 ) {
                     accounts.filterNot { it.archived }.forEach { account ->
                         DropdownMenuItem(
-                            text = { Text(account.name) },
+                            text = { Text(AccountLabels.display(context, account)) },
                             onClick = {
                                 accountId = account.id
                                 accountMenuExpanded = false

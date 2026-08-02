@@ -338,4 +338,9 @@
     <string name="insight_over_one">You\'re over budget on %1$s this month — %2$s of %3$s.</string>
     <string name="insight_over_many">You\'re over budget on %1$d categories this month: %2$s.</string>
     <string name="insight_near">You\'re close to your %1$s budget this month — %2$s of %3$s.</string>
+    <string name="notif_channel_budget">予算アラート</string>
+    <string name="notif_channel_budget_desc">カテゴリ予算が上限に近づいた／超えたときに通知</string>
+    <string name="notif_over_budget">予算超過: %1$s</string>
+    <string name="notif_near_limit">上限間近: %1$s</string>
+    <string name="notif_budget_spent">今月 %2$s 中 %1$s を使用</string>
 </resources>

@@ -336,5 +336,10 @@
   "insight_recurring": "Anda mempunyai %1$d transaksi berulang yang dijana setiap bulan.",
   "insight_over_one": "Anda melebihi belanjawan %1$s bulan ini — %2$s daripada %3$s.",
   "insight_over_many": "Anda melebihi belanjawan pada %1$d kategori bulan ini: %2$s.",
-  "insight_near": "Anda hampir mencapai belanjawan %1$s bulan ini — %2$s daripada %3$s."
+  "insight_near": "Anda hampir mencapai belanjawan %1$s bulan ini — %2$s daripada %3$s.",
+  "notif_channel_budget": "Amaran belanjawan",
+  "notif_channel_budget_desc": "Amaran apabila kategori hampir atau melebihi had",
+  "notif_over_budget": "Melebihi belanjawan: %1$s",
+  "notif_near_limit": "Hampir had: %1$s",
+  "notif_budget_spent": "%1$s daripada %2$s dibelanja bulan ini"
 }

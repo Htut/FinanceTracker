@@ -336,5 +336,10 @@
   "insight_recurring": "You have %1$d recurring transaction(s) set up to auto-post each month.",
   "insight_over_one": "You're over budget on %1$s this month — %2$s of %3$s.",
   "insight_over_many": "You're over budget on %1$d categories this month: %2$s.",
-  "insight_near": "You're close to your %1$s budget this month — %2$s of %3$s."
+  "insight_near": "You're close to your %1$s budget this month — %2$s of %3$s.",
+  "notif_channel_budget": "การแจ้งเตือนงบประมาณ",
+  "notif_channel_budget_desc": "แจ้งเตือนเมื่อหมวดใกล้งบหรือเกินงบ",
+  "notif_over_budget": "เกินงบ: %1$s",
+  "notif_near_limit": "ใกล้งบ: %1$s",
+  "notif_budget_spent": "ใช้ไป %1$s จาก %2$s ในเดือนนี้"
 }

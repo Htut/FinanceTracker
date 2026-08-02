@@ -39,4 +39,12 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
+
+    override fun onStop() {
+        super.onStop()
+        // Re-lock when leaving the app (not on rotation / config change).
+        if (!isChangingConfigurations) {
+            viewModel.lockSession()
+        }
+    }
 }

@@ -338,4 +338,9 @@
     <string name="insight_over_one">You\'re over budget on %1$s this month — %2$s of %3$s.</string>
     <string name="insight_over_many">You\'re over budget on %1$d categories this month: %2$s.</string>
     <string name="insight_near">You\'re close to your %1$s budget this month — %2$s of %3$s.</string>
+    <string name="notif_channel_budget">تنبيهات الميزانية</string>
+    <string name="notif_channel_budget_desc">تنبيهات عند اقتراب أو تجاوز حد فئة</string>
+    <string name="notif_over_budget">تجاوز الميزانية: %1$s</string>
+    <string name="notif_near_limit">قرب الحد: %1$s</string>
+    <string name="notif_budget_spent">أُنفق %1$s من %2$s هذا الشهر</string>
 </resources>

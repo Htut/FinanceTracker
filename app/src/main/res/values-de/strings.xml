@@ -338,4 +338,9 @@
     <string name="insight_over_one">You\'re over budget on %1$s this month — %2$s of %3$s.</string>
     <string name="insight_over_many">You\'re over budget on %1$d categories this month: %2$s.</string>
     <string name="insight_near">You\'re close to your %1$s budget this month — %2$s of %3$s.</string>
+    <string name="notif_channel_budget">Budgetwarnungen</string>
+    <string name="notif_channel_budget_desc">Warnungen, wenn ein Kategoriebudget nahe oder über dem Limit liegt</string>
+    <string name="notif_over_budget">Budget überschritten: %1$s</string>
+    <string name="notif_near_limit">Nahe am Limit: %1$s</string>
+    <string name="notif_budget_spent">%1$s von %2$s diesen Monat ausgegeben</string>
 </resources>

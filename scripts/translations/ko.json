@@ -336,5 +336,10 @@
   "insight_recurring": "You have %1$d recurring transaction(s) set up to auto-post each month.",
   "insight_over_one": "You're over budget on %1$s this month — %2$s of %3$s.",
   "insight_over_many": "You're over budget on %1$d categories this month: %2$s.",
-  "insight_near": "You're close to your %1$s budget this month — %2$s of %3$s."
+  "insight_near": "You're close to your %1$s budget this month — %2$s of %3$s.",
+  "notif_channel_budget": "예산 알림",
+  "notif_channel_budget_desc": "카테고리 예산이 한도에 가까워지거나 초과할 때 알림",
+  "notif_over_budget": "예산 초과: %1$s",
+  "notif_near_limit": "한도 임박: %1$s",
+  "notif_budget_spent": "이번 달 %2$s 중 %1$s 사용"
 }

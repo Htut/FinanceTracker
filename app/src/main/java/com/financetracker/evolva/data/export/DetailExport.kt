@@ -19,10 +19,10 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.OutputStream
 
-enum class DetailShareFormat(val label: String, val mimeType: String, val extension: String) {
-    TEXT("Text", "text/plain", "txt"),
-    CSV("CSV", "text/csv", "csv"),
-    PDF("PDF", "application/pdf", "pdf")
+enum class DetailShareFormat(val mimeType: String, val extension: String) {
+    TEXT("text/plain", "txt"),
+    CSV("text/csv", "csv"),
+    PDF("application/pdf", "pdf")
 }
 
 object DetailExport {
