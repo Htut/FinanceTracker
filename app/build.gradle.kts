@@ -15,7 +15,8 @@ extensions.configure<ApplicationExtension> {
     defaultConfig {
         applicationId = "com.financetracker.evolva"
         minSdk = 26
-        targetSdk = 37
+        // Stay on 36 until you intentionally migrate with the SDK Upgrade Assistant.
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0.0-beta"
     }
