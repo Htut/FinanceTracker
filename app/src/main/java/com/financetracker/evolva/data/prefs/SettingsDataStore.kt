@@ -116,12 +116,6 @@ class SettingsDataStore(private val context: Context) {
         }
     }
 
-    fun findProfile(profiles: List<TrackerProfile>, id: String): TrackerProfile? =
-        profiles.find { it.id == id }
-
-    fun profileForTemplate(profiles: List<TrackerProfile>, templateId: String): TrackerProfile? =
-        profiles.find { it.kind == ProfileKind.TEMPLATE && it.templateId == templateId }
-
     /**
      * One-shot: copy legacy money prefs into [onImport], then strip them from the global store.
      * Returns true if migration ran.

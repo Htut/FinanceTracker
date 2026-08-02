@@ -99,7 +99,6 @@
     <string name="wallets_help">Track Cash, Bank, and E-Wallet balances. Assign a wallet when adding a transaction.</string>
     <string name="section_custom_expense_types">Custom expense types</string>
     <string name="section_starter_templates">Starter Templates</string>
-    <string name="load_template">Muat templat</string>
     <string name="section_recurring">Recurring Transactions</string>
     <string name="section_backup">Backup, Restore &amp; Share</string>
     <string name="section_app_password">App Password</string>
