@@ -959,7 +959,7 @@ private fun SecuritySettingsTab(viewModel: MainViewModel) {
                     fontSize = 12.5.sp,
                     color = FinanceColors.TextSoft
                 )
-                Spacer(modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(10.dp))
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(
                         listOf(
