@@ -43,7 +43,8 @@ data class TransactionEntity(
 @Entity(tableName = "budgets")
 data class BudgetEntity(
     @PrimaryKey val category: String,
-    val limitAmount: Double
+    val limitAmount: Double,
+    val locked: Boolean = false
 )
 
 @Entity(tableName = "recurring_rules")
@@ -112,8 +113,8 @@ fun Transaction.toEntity() = TransactionEntity(
     locked = locked
 )
 
-fun BudgetEntity.toDomain() = Budget(category = category, limit = limitAmount)
-fun Budget.toEntity() = BudgetEntity(category = category, limitAmount = limit)
+fun BudgetEntity.toDomain() = Budget(category = category, limit = limitAmount, locked = locked)
+fun Budget.toEntity() = BudgetEntity(category = category, limitAmount = limit, locked = locked)
 
 fun RecurringRuleEntity.toDomain() = RecurringRule(
     id = id,

@@ -42,7 +42,8 @@ data class AccountDto(
 @Serializable
 data class BudgetDto(
     val category: String,
-    val limit: Double
+    val limit: Double,
+    val locked: Boolean = false
 )
 
 @Serializable
@@ -118,8 +119,8 @@ fun AccountDto.toDomain() = Account(
     archived = archived
 )
 
-fun Budget.toDto() = BudgetDto(category = category, limit = limit)
-fun BudgetDto.toDomain() = Budget(category = category, limit = limit)
+fun Budget.toDto() = BudgetDto(category = category, limit = limit, locked = locked)
+fun BudgetDto.toDomain() = Budget(category = category, limit = limit, locked = locked)
 
 fun RecurringRule.toDto() = RecurringRuleDto(
     id = id, type = type.name, category = category, amount = amount, note = note,

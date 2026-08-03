@@ -166,7 +166,8 @@ fun Transaction.formatRecordedAt(): String =
 
 data class Budget(
     val category: String,
-    val limit: Double
+    val limit: Double,
+    val locked: Boolean = false
 )
 
 data class RecurringRule(

@@ -49,6 +49,7 @@ sealed class ImportResult {
 
 sealed class UndoAction {
     data class DeleteTransaction(val transaction: Transaction) : UndoAction()
+    data class DeleteBudget(val budget: Budget) : UndoAction()
     data class ClearAll(val transactions: List<Transaction>) : UndoAction()
 }
 
@@ -352,6 +353,7 @@ class MainViewModel(
         viewModelScope.launch {
             when (val action = _undoAction.value) {
                 is UndoAction.DeleteTransaction -> repository.addTransaction(action.transaction)
+                is UndoAction.DeleteBudget -> repository.upsertBudget(action.budget)
                 is UndoAction.ClearAll -> repository.addTransactions(action.transactions)
                 null -> Unit
             }
@@ -373,12 +375,28 @@ class MainViewModel(
 
     fun setBudget(category: String, limit: Double) {
         if (viewOnlyMode.value) return
-        viewModelScope.launch { repository.setBudget(category, limit) }
+        viewModelScope.launch {
+            val existing = budgets.value.find { it.category == category }
+            if (existing?.locked == true) return@launch
+            repository.setBudget(category, limit)
+        }
     }
 
     fun deleteBudget(category: String) {
         if (viewOnlyMode.value) return
-        viewModelScope.launch { repository.deleteBudget(category) }
+        viewModelScope.launch {
+            val existing = budgets.value.find { it.category == category } ?: return@launch
+            if (existing.locked) return@launch
+            repository.deleteBudget(category)
+            _undoAction.value = UndoAction.DeleteBudget(existing)
+        }
+    }
+
+    fun setBudgetLocked(category: String, locked: Boolean) {
+        if (viewOnlyMode.value) return
+        viewModelScope.launch {
+            repository.setBudgetLocked(category, locked)
+        }
     }
 
     fun updateRecurringRule(rule: RecurringRule) {

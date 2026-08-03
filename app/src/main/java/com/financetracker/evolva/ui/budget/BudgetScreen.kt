@@ -1,5 +1,7 @@
 package com.financetracker.evolva.ui.budget
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,28 +12,39 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.ExposedDropdownMenu
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.foundation.background
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,9 +59,11 @@ import com.financetracker.evolva.data.calc.BudgetState
 import com.financetracker.evolva.data.calc.FinanceCalculator
 import com.financetracker.evolva.data.calc.ForecastCalculator
 import com.financetracker.evolva.data.locale.CategoryLabels
+import com.financetracker.evolva.data.model.Budget
 import com.financetracker.evolva.data.model.Categories
 import com.financetracker.evolva.data.model.formatAmount
 import com.financetracker.evolva.ui.MainViewModel
+import com.financetracker.evolva.ui.UndoAction
 import com.financetracker.evolva.ui.components.BudgetProgressBar
 import com.financetracker.evolva.ui.components.DateFilterBar
 import com.financetracker.evolva.ui.components.LineChart
@@ -72,6 +87,20 @@ fun BudgetScreen(viewModel: MainViewModel) {
     val filterAutoCloseSeconds by viewModel.filterAutoCloseSeconds.collectAsState()
     val customExpenseCategories by viewModel.customExpenseCategories.collectAsState()
     val viewOnly by viewModel.viewOnlyMode.collectAsState()
+    val undoAction by viewModel.undoAction.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    var pendingDelete by remember { mutableStateOf<Budget?>(null) }
+
+    LaunchedEffect(undoAction) {
+        if (undoAction is UndoAction.DeleteBudget) {
+            val result = snackbarHostState.showSnackbar(
+                message = context.getString(R.string.budget_deleted),
+                actionLabel = context.getString(R.string.action_undo)
+            )
+            if (result == SnackbarResult.ActionPerformed) viewModel.undoLastAction()
+            else viewModel.dismissUndo()
+        }
+    }
 
     fun fmt(v: Double) = formatAmount(v, currency)
 
@@ -101,234 +130,345 @@ fun BudgetScreen(viewModel: MainViewModel) {
     }
     var newLimitText by remember { mutableStateOf("") }
     var categoryMenuExpanded by remember { mutableStateOf(false) }
+    val editingLocked = budgets.any { it.category == newCategory && it.locked }
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        item {
-            Column {
-                Text(
-                    stringResource(R.string.budget_title),
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = FinanceColors.Text
-                )
-                Text(
-                    stringResource(
-                        R.string.budget_subtitle,
-                        currentMonth.month.getDisplayName(TextStyle.FULL, locale)
-                    ),
-                    fontSize = 13.sp,
-                    color = FinanceColors.TextSoft
-                )
-            }
-        }
-
-        item {
-            DateFilterBar(
-                filter = dateFilter,
-                onFilterChange = viewModel::setDateFilter,
-                autoCloseSeconds = filterAutoCloseSeconds
-            )
-        }
-
-        item {
-            SectionCard(title = stringResource(R.string.category_budgets_month)) {
-                if (budgetRows.isEmpty()) {
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item {
+                Column {
                     Text(
-                        stringResource(R.string.budget_empty_help),
+                        stringResource(R.string.budget_title),
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = FinanceColors.Text
+                    )
+                    Text(
+                        stringResource(
+                            R.string.budget_subtitle,
+                            currentMonth.month.getDisplayName(TextStyle.FULL, locale)
+                        ),
                         fontSize = 13.sp,
                         color = FinanceColors.TextSoft
                     )
-                } else {
-                    budgetRows.forEach { (budget, spent, state) ->
-                        val color = when (state) {
-                            BudgetState.OVER -> FinanceColors.Expense
-                            BudgetState.WARN -> FinanceColors.Warn
-                            else -> FinanceColors.Income
-                        }
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    newCategory = budget.category
-                                    newLimitText = if (budget.limit == budget.limit.toLong().toDouble()) {
-                                        budget.limit.toLong().toString()
-                                    } else {
-                                        budget.limit.toString()
+                }
+            }
+
+            item {
+                DateFilterBar(
+                    filter = dateFilter,
+                    onFilterChange = viewModel::setDateFilter,
+                    autoCloseSeconds = filterAutoCloseSeconds
+                )
+            }
+
+            item {
+                SectionCard(title = stringResource(R.string.category_budgets_month)) {
+                    if (budgetRows.isEmpty()) {
+                        Text(
+                            stringResource(R.string.budget_empty_help),
+                            fontSize = 13.sp,
+                            color = FinanceColors.TextSoft
+                        )
+                    } else {
+                        budgetRows.forEach { (budget, spent, state) ->
+                            val color = when (state) {
+                                BudgetState.OVER -> FinanceColors.Expense
+                                BudgetState.WARN -> FinanceColors.Warn
+                                else -> FinanceColors.Income
+                            }
+                            val canEdit = !viewOnly && !budget.locked
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .then(
+                                        if (canEdit) {
+                                            Modifier.clickable {
+                                                newCategory = budget.category
+                                                newLimitText =
+                                                    if (budget.limit == budget.limit.toLong().toDouble()) {
+                                                        budget.limit.toLong().toString()
+                                                    } else {
+                                                        budget.limit.toString()
+                                                    }
+                                            }
+                                        } else Modifier
+                                    )
+                                    .padding(vertical = 8.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            CategoryLabels.display(context, budget.category),
+                                            fontSize = 13.5.sp,
+                                            color = FinanceColors.Text
+                                        )
+                                        Text(
+                                            stringResource(
+                                                R.string.budget_spent_of_limit,
+                                                fmt(spent),
+                                                fmt(budget.limit)
+                                            ),
+                                            fontSize = 12.sp,
+                                            color = FinanceColors.TextSoft
+                                        )
+                                        if (budget.locked) {
+                                            Text(
+                                                stringResource(R.string.budget_locked_hint),
+                                                fontSize = 11.sp,
+                                                color = FinanceColors.TextSoft,
+                                                modifier = Modifier.padding(top = 2.dp)
+                                            )
+                                        }
+                                    }
+                                    if (!viewOnly) {
+                                        IconButton(
+                                            onClick = {
+                                                viewModel.setBudgetLocked(budget.category, !budget.locked)
+                                            }
+                                        ) {
+                                            Icon(
+                                                if (budget.locked) Icons.Filled.Lock else Icons.Filled.LockOpen,
+                                                contentDescription = stringResource(
+                                                    if (budget.locked) R.string.cd_unlock_budget
+                                                    else R.string.cd_lock_budget
+                                                ),
+                                                tint = if (budget.locked) {
+                                                    FinanceColors.Text
+                                                } else {
+                                                    FinanceColors.TextSoft
+                                                },
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                        if (!budget.locked) {
+                                            TextButton(onClick = { pendingDelete = budget }) {
+                                                Text(
+                                                    stringResource(R.string.action_delete),
+                                                    color = FinanceColors.Expense
+                                                )
+                                            }
+                                        }
                                     }
                                 }
-                                .padding(vertical = 8.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
+                                Spacer(modifier = Modifier.height(6.dp))
+                                BudgetProgressBar(
+                                    progress = if (budget.limit > 0) {
+                                        (spent / budget.limit).toFloat()
+                                    } else {
+                                        0f
+                                    },
+                                    color = color
+                                )
+                                if (state == BudgetState.OVER) {
                                     Text(
-                                        CategoryLabels.display(context, budget.category),
-                                        fontSize = 13.5.sp,
-                                        color = FinanceColors.Text
+                                        stringResource(R.string.over_budget),
+                                        fontSize = 11.5.sp,
+                                        color = FinanceColors.Expense,
+                                        modifier = Modifier.padding(top = 3.dp)
                                     )
+                                } else if (state == BudgetState.WARN) {
                                     Text(
-                                        stringResource(
-                                            R.string.budget_spent_of_limit,
-                                            fmt(spent),
-                                            fmt(budget.limit)
-                                        ),
-                                        fontSize = 12.sp,
-                                        color = FinanceColors.TextSoft
+                                        stringResource(R.string.approaching_limit),
+                                        fontSize = 11.5.sp,
+                                        color = FinanceColors.Warn,
+                                        modifier = Modifier.padding(top = 3.dp)
                                     )
                                 }
-                                TextButton(
-                                    onClick = { viewModel.deleteBudget(budget.category) },
-                                    enabled = !viewOnly
-                                ) {
-                                    Text(stringResource(R.string.action_delete), color = FinanceColors.Expense)
-                                }
-                            }
-                            Spacer(modifier = Modifier.height(6.dp))
-                            BudgetProgressBar(
-                                progress = if (budget.limit > 0) (spent / budget.limit).toFloat() else 0f,
-                                color = color
-                            )
-                            if (state == BudgetState.OVER) {
-                                Text(
-                                    stringResource(R.string.over_budget),
-                                    fontSize = 11.5.sp,
-                                    color = FinanceColors.Expense,
-                                    modifier = Modifier.padding(top = 3.dp)
-                                )
-                            } else if (state == BudgetState.WARN) {
-                                Text(
-                                    stringResource(R.string.approaching_limit),
-                                    fontSize = 11.5.sp,
-                                    color = FinanceColors.Warn,
-                                    modifier = Modifier.padding(top = 3.dp)
-                                )
                             }
                         }
                     }
-                }
 
-                Spacer(modifier = Modifier.height(10.dp))
-                Text(stringResource(R.string.set_or_edit_limit), fontSize = 12.sp, color = FinanceColors.TextSoft)
-                Spacer(Modifier.height(6.dp))
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ExposedDropdownMenuBox(
-                        expanded = categoryMenuExpanded,
-                        onExpandedChange = { categoryMenuExpanded = it },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        OutlinedTextField(
-                            value = CategoryLabels.display(context, newCategory),
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text(stringResource(R.string.label_category)) },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryMenuExpanded) },
-                            modifier = Modifier
-                                .menuAnchor(MenuAnchorType.PrimaryNotEditable)
-                                .fillMaxWidth()
-                        )
-                        ExposedDropdownMenu(
-                            expanded = categoryMenuExpanded,
-                            onDismissRequest = { categoryMenuExpanded = false }
-                        ) {
-                            budgetable.forEach { c ->
-                                DropdownMenuItem(text = { Text(CategoryLabels.display(context, c)) }, onClick = {
-                                    newCategory = c
-                                    newLimitText = budgets.find { it.category == c }?.limit?.let { limit ->
-                                        if (limit == limit.toLong().toDouble()) limit.toLong().toString() else limit.toString()
-                                    } ?: ""
-                                    categoryMenuExpanded = false
-                                })
-                            }
-                        }
-                    }
-                    OutlinedTextField(
-                        value = newLimitText,
-                        onValueChange = { input -> newLimitText = input.filter { it.isDigit() || it == '.' } },
-                        label = { Text(stringResource(R.string.label_limit)) },
-                        keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal),
-                        modifier = Modifier.width(120.dp)
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        stringResource(R.string.set_or_edit_limit),
+                        fontSize = 12.sp,
+                        color = FinanceColors.TextSoft
                     )
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                Button(
-                    onClick = {
-                        val limit = newLimitText.toDoubleOrNull()
-                        if (limit != null && limit > 0) {
-                            viewModel.setBudget(newCategory, limit)
-                            newLimitText = ""
-                        }
-                    },
-                    enabled = !viewOnly && (newLimitText.toDoubleOrNull()?.let { it > 0 } ?: false)
-                ) { Text(stringResource(R.string.save_limit)) }
-            }
-        }
-
-        item {
-            SectionCard(title = stringResource(R.string.cash_flow_forecast)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf(3, 6, 12).forEach { months ->
-                        FilterChip(
-                            selected = forecastHorizon == months,
-                            onClick = { viewModel.setForecastHorizon(months) },
-                            label = { Text(stringResource(R.string.forecast_months, months)) }
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(10.dp))
-                LineChart(
-                    labels = forecastLabels,
-                    values = forecastValues,
-                    dashedFromIndex = (forecast.pastMonths.size - 1).coerceAtLeast(0),
-                    lineColor = FinanceColors.Savings,
-                    showZeroLine = true
-                )
-
-                forecast.firstNegativeMonth?.let { month ->
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(FinanceColors.Expense.copy(alpha = 0.1f))
-                            .padding(12.dp)
-                    ) {
-                        Text(
-                            stringResource(
-                                R.string.forecast_negative_around,
-                                month.format(DateTimeFormatter.ofPattern("MMM yyyy"))
-                            ),
-                            fontSize = 12.5.sp,
-                            color = FinanceColors.Expense
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(14.dp))
-                Text(stringResource(R.string.month_by_month_projection), fontSize = 12.sp, color = FinanceColors.TextSoft)
-                Spacer(modifier = Modifier.height(6.dp))
-                forecast.futurePoints.forEach { point ->
+                    Spacer(modifier = Modifier.height(6.dp))
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text(point.month.format(DateTimeFormatter.ofPattern("MMM yyyy")), fontSize = 12.5.sp, color = FinanceColors.Text)
-                        Text(
-                            fmt(point.balance),
-                            fontSize = 12.5.sp,
-                            color = if (point.balance < 0) FinanceColors.Expense else FinanceColors.Text
+                        ExposedDropdownMenuBox(
+                            expanded = categoryMenuExpanded,
+                            onExpandedChange = { if (!viewOnly) categoryMenuExpanded = it },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            OutlinedTextField(
+                                value = CategoryLabels.display(context, newCategory),
+                                onValueChange = {},
+                                readOnly = true,
+                                enabled = !viewOnly,
+                                label = { Text(stringResource(R.string.label_category)) },
+                                trailingIcon = {
+                                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryMenuExpanded)
+                                },
+                                modifier = Modifier
+                                    .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                                    .fillMaxWidth()
+                            )
+                            ExposedDropdownMenu(
+                                expanded = categoryMenuExpanded,
+                                onDismissRequest = { categoryMenuExpanded = false }
+                            ) {
+                                budgetable.forEach { c ->
+                                    DropdownMenuItem(
+                                        text = { Text(CategoryLabels.display(context, c)) },
+                                        onClick = {
+                                            newCategory = c
+                                            newLimitText = budgets.find { it.category == c }?.limit?.let { limit ->
+                                                if (limit == limit.toLong().toDouble()) {
+                                                    limit.toLong().toString()
+                                                } else {
+                                                    limit.toString()
+                                                }
+                                            } ?: ""
+                                            categoryMenuExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                        OutlinedTextField(
+                            value = newLimitText,
+                            onValueChange = { input ->
+                                newLimitText = input.filter { it.isDigit() || it == '.' }
+                            },
+                            label = { Text(stringResource(R.string.label_limit)) },
+                            enabled = !viewOnly && !editingLocked,
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal
+                            ),
+                            modifier = Modifier.width(120.dp)
                         )
+                    }
+                    if (editingLocked) {
+                        Text(
+                            stringResource(R.string.budget_locked_hint),
+                            fontSize = 11.5.sp,
+                            color = FinanceColors.TextSoft,
+                            modifier = Modifier.padding(top = 6.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
+                        onClick = {
+                            val limit = newLimitText.toDoubleOrNull()
+                            if (limit != null && limit > 0) {
+                                viewModel.setBudget(newCategory, limit)
+                                newLimitText = ""
+                            }
+                        },
+                        enabled = !viewOnly && !editingLocked &&
+                            (newLimitText.toDoubleOrNull()?.let { it > 0 } ?: false)
+                    ) { Text(stringResource(R.string.save_limit)) }
+                }
+            }
+
+            item {
+                SectionCard(title = stringResource(R.string.cash_flow_forecast)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf(3, 6, 12).forEach { months ->
+                            FilterChip(
+                                selected = forecastHorizon == months,
+                                onClick = { viewModel.setForecastHorizon(months) },
+                                label = { Text(stringResource(R.string.forecast_months, months)) }
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    LineChart(
+                        labels = forecastLabels,
+                        values = forecastValues,
+                        dashedFromIndex = (forecast.pastMonths.size - 1).coerceAtLeast(0),
+                        lineColor = FinanceColors.Savings,
+                        showZeroLine = true
+                    )
+
+                    forecast.firstNegativeMonth?.let { month ->
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(FinanceColors.Expense.copy(alpha = 0.1f))
+                                .padding(12.dp)
+                        ) {
+                            Text(
+                                stringResource(
+                                    R.string.forecast_negative_around,
+                                    month.format(DateTimeFormatter.ofPattern("MMM yyyy"))
+                                ),
+                                fontSize = 12.5.sp,
+                                color = FinanceColors.Expense
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Text(
+                        stringResource(R.string.month_by_month_projection),
+                        fontSize = 12.sp,
+                        color = FinanceColors.TextSoft
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    forecast.futurePoints.forEach { point ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 5.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                point.month.format(DateTimeFormatter.ofPattern("MMM yyyy")),
+                                fontSize = 12.5.sp,
+                                color = FinanceColors.Text
+                            )
+                            Text(
+                                fmt(point.balance),
+                                fontSize = 12.5.sp,
+                                color = if (point.balance < 0) FinanceColors.Expense else FinanceColors.Text
+                            )
+                        }
                     }
                 }
             }
         }
+    }
 
-        item { Spacer(modifier = Modifier.height(24.dp)) }
+    pendingDelete?.let { budget ->
+        val label = CategoryLabels.display(context, budget.category)
+        AlertDialog(
+            onDismissRequest = { pendingDelete = null },
+            title = { Text(stringResource(R.string.delete_budget_title)) },
+            text = { Text(stringResource(R.string.delete_budget_message, label)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteBudget(budget.category)
+                        pendingDelete = null
+                    }
+                ) {
+                    Text(stringResource(R.string.action_delete))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDelete = null }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            }
+        )
     }
 }

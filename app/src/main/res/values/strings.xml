@@ -108,6 +108,12 @@
     <string name="transaction_deleted">Transaction deleted</string>
     <string name="delete_transaction_title">Delete transaction?</string>
     <string name="delete_transaction_message">Delete \"%1$s\"? You can undo this afterward.</string>
+    <string name="budget_deleted">Budget deleted</string>
+    <string name="delete_budget_title">Delete budget?</string>
+    <string name="delete_budget_message">Delete the \"%1$s\" budget limit? You can undo this afterward.</string>
+    <string name="cd_lock_budget">Lock budget</string>
+    <string name="cd_unlock_budget">Unlock budget</string>
+    <string name="budget_locked_hint">Unlock to edit or delete</string>
     <string name="view_only_mode">View only</string>
     <string name="view_only_mode_help">When on, transactions cannot be added, edited, or deleted. Turn off anytime in Settings.</string>
     <string name="view_only_banner">View only — editing is locked</string>
