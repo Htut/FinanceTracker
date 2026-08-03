@@ -2,6 +2,7 @@ package com.financetracker.evolva.ui.settings
 
 import android.app.Activity
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -828,10 +829,12 @@ private fun BackupSettingsTab(viewModel: MainViewModel) {
             }
         }
     }
-    val driveSignInLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
+    val driveAuthLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult()
     ) { result ->
-        viewModel.handleDriveSignInResult(result.data)
+        if (result.resultCode == Activity.RESULT_OK) {
+            viewModel.handleDriveAuthorizationResult(result.data)
+        }
     }
 
     LazyColumn(
@@ -855,7 +858,13 @@ private fun BackupSettingsTab(viewModel: MainViewModel) {
                 Spacer(modifier = Modifier.height(12.dp))
                 if (driveEmail == null) {
                     Button(
-                        onClick = { driveSignInLauncher.launch(viewModel.driveSignInIntent()) },
+                        onClick = {
+                            viewModel.connectDrive { pendingIntent ->
+                                driveAuthLauncher.launch(
+                                    IntentSenderRequest.Builder(pendingIntent).build()
+                                )
+                            }
+                        },
                         enabled = !driveBusy
                     ) {
                         Text(stringResource(R.string.drive_sign_in))

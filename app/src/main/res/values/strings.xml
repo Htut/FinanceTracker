@@ -300,6 +300,7 @@
     <string name="drive_restore_confirm_title">Restore from Drive?</string>
     <string name="drive_restore_confirm_message">This replaces all data in the active profile with the Drive backup. Local export first if you want a safety copy.</string>
     <string name="drive_account">Signed in as %1$s</string>
+    <string name="drive_account_connected">Google account connected</string>
     <string name="drive_last_backup">Cloud backup: %1$s</string>
     <string name="drive_no_cloud_backup_yet">No cloud backup for this profile yet.</string>
     <string name="drive_signed_in">Signed in as %1$s</string>

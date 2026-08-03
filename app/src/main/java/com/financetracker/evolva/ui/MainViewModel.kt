@@ -2,6 +2,7 @@ package com.financetracker.evolva.ui
 
 import android.content.Context
 import android.content.Intent
+import android.app.PendingIntent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -9,12 +10,11 @@ import androidx.lifecycle.viewmodel.CreationExtras
 import com.financetracker.evolva.R
 import com.financetracker.evolva.data.AppConstants
 import com.financetracker.evolva.data.backup.BackupManager
+import com.financetracker.evolva.data.backup.DriveAuthOutcome
 import com.financetracker.evolva.data.backup.DriveBackupClient
 import com.financetracker.evolva.data.backup.DriveBackupMeta
 import com.financetracker.evolva.data.backup.toDomain
 import com.financetracker.evolva.data.locale.LocaleHelper
-import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.common.api.ApiException
 import com.financetracker.evolva.data.model.Account
 import com.financetracker.evolva.data.model.AppCurrency
 import com.financetracker.evolva.data.model.AppLanguage
@@ -562,30 +562,59 @@ class MainViewModel(
         return ImportResult.Success(imported.size)
     }
 
-    fun driveSignInIntent(): Intent = driveClient.signInIntent()
-
-    fun refreshDriveAccount() {
+    fun connectDrive(onNeedsUi: (PendingIntent) -> Unit) {
+        if (_driveBusy.value) return
         viewModelScope.launch {
-            val account = driveClient.currentAccount()
-            _driveAccountEmail.value = account?.email
-            if (account != null) {
-                _driveBackupMeta.value = driveClient.backupMeta(activeProfile.value.id)
-            } else {
-                _driveBackupMeta.value = null
+            _driveBusy.value = true
+            when (val outcome = driveClient.authorize()) {
+                is DriveAuthOutcome.NeedsUi -> {
+                    _driveBusy.value = false
+                    onNeedsUi(outcome.pendingIntent)
+                }
+                is DriveAuthOutcome.Ready -> {
+                    applyDriveReady(outcome)
+                    _driveBusy.value = false
+                }
+                is DriveAuthOutcome.Failed -> {
+                    _driveBusy.value = false
+                    _infoMessage.value = outcome.message.ifBlank { str(R.string.drive_sign_in_failed) }
+                }
             }
         }
     }
 
-    fun handleDriveSignInResult(data: Intent?) {
+    fun handleDriveAuthorizationResult(data: Intent?) {
         viewModelScope.launch {
-            try {
-                val account = GoogleSignIn.getSignedInAccountFromIntent(data)
-                    .getResult(ApiException::class.java)
-                _driveAccountEmail.value = account.email
+            _driveBusy.value = true
+            when (val outcome = driveClient.completeAuthorization(data)) {
+                is DriveAuthOutcome.Ready -> applyDriveReady(outcome)
+                is DriveAuthOutcome.Failed ->
+                    _infoMessage.value = outcome.message.ifBlank { str(R.string.drive_sign_in_failed) }
+                is DriveAuthOutcome.NeedsUi ->
+                    _infoMessage.value = str(R.string.drive_sign_in_failed)
+            }
+            _driveBusy.value = false
+        }
+    }
+
+    private suspend fun applyDriveReady(outcome: DriveAuthOutcome.Ready) {
+        _driveAccountEmail.value = outcome.email ?: str(R.string.drive_account_connected)
+        _driveBackupMeta.value = driveClient.backupMeta(activeProfile.value.id)
+        _infoMessage.value = str(
+            R.string.drive_signed_in,
+            outcome.email ?: str(R.string.drive_account_connected)
+        )
+    }
+
+    fun refreshDriveAccount() {
+        viewModelScope.launch {
+            val email = driveClient.currentSessionEmail()
+            if (email == null && driveClient.silentAccessToken() == null) {
+                _driveAccountEmail.value = null
+                _driveBackupMeta.value = null
+            } else {
+                _driveAccountEmail.value = email ?: str(R.string.drive_account_connected)
                 _driveBackupMeta.value = driveClient.backupMeta(activeProfile.value.id)
-                _infoMessage.value = str(R.string.drive_signed_in, account.email ?: "")
-            } catch (e: Exception) {
-                _infoMessage.value = e.message ?: str(R.string.drive_sign_in_failed)
             }
         }
     }
@@ -603,6 +632,8 @@ class MainViewModel(
         if (_driveBusy.value) return
         viewModelScope.launch {
             _driveBusy.value = true
+            // Refresh token silently before upload when possible.
+            driveClient.silentAccessToken()
             val json = exportBackupJson()
             val result = driveClient.uploadBackup(activeProfile.value.id, json)
             _driveBusy.value = false
@@ -624,6 +655,7 @@ class MainViewModel(
         if (_driveBusy.value) return
         viewModelScope.launch {
             _driveBusy.value = true
+            driveClient.silentAccessToken()
             val result = driveClient.downloadBackup(activeProfile.value.id)
             _driveBusy.value = false
             result
