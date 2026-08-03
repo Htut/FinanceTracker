@@ -11,9 +11,9 @@ enum class TransactionType { INCOME, EXPENSE, SAVINGS, TRANSFER }
 enum class TransferDirection { OUT, IN }
 
 enum class AppCurrency(val code: String, val symbol: String, val decimals: Int) {
-    // Regional defaults first
-    MYR("MYR", "RM", 2),
+    // Default first
     USD("USD", "$", 2),
+    MYR("MYR", "RM", 2),
     MMK("MMK", "Ks", 0),
     SGD("SGD", "S$", 2),
     IDR("IDR", "Rp", 0),
@@ -45,7 +45,7 @@ enum class AppCurrency(val code: String, val symbol: String, val decimals: Int) 
     EGP("EGP", "E£", 2);
 
     companion object {
-        fun fromCode(code: String?): AppCurrency = entries.find { it.code == code } ?: MYR
+        fun fromCode(code: String?): AppCurrency = entries.find { it.code == code } ?: USD
     }
 }
 

@@ -62,7 +62,7 @@ class ActiveProfileSession(
     val budgets = _binding.flatMapLatest { it?.repository?.budgets ?: flowOf(emptyList()) }
     val recurringRules =
         _binding.flatMapLatest { it?.repository?.recurringRules ?: flowOf(emptyList()) }
-    val currency = _binding.flatMapLatest { it?.settings?.currency ?: flowOf(AppCurrency.MYR) }
+    val currency = _binding.flatMapLatest { it?.settings?.currency ?: flowOf(AppCurrency.USD) }
     val exchangeRates = _binding.flatMapLatest { it?.settings?.exchangeRates ?: flowOf(emptyMap()) }
     val customExpenseCategories =
         _binding.flatMapLatest { it?.settings?.customExpenseCategories ?: flowOf(emptyList()) }
