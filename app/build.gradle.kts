@@ -22,6 +22,8 @@ extensions.configure<ApplicationExtension> {
 
     buildTypes {
         getByName("release") {
+            // Beta distribution: signed with the debug keystore until a release keystore is configured.
+            signingConfig = signingConfigs.getByName("debug")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(

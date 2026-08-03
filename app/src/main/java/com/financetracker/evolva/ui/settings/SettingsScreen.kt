@@ -56,6 +56,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.financetracker.evolva.R
@@ -67,6 +68,7 @@ import com.financetracker.evolva.data.model.RecurringRule
 import com.financetracker.evolva.data.model.TransactionType
 import com.financetracker.evolva.data.model.TransferDirection
 import com.financetracker.evolva.data.model.formatAmount
+import com.financetracker.evolva.data.model.formatExchangeRate
 import com.financetracker.evolva.data.prefs.PasswordChangeResult
 import com.financetracker.evolva.data.profile.ProfileIds
 import com.financetracker.evolva.data.profile.ProfileKind
@@ -299,63 +301,110 @@ private fun ExchangeRatesSection(
     onSave: (String, Double) -> Unit,
     onFetchLive: () -> Unit
 ) {
-    var values by remember(homeCurrency, exchangeRates) {
+    var toHome by remember(homeCurrency, exchangeRates) {
         mutableStateOf(
             AppCurrency.entries
                 .filter { it != homeCurrency }
                 .associate { currency ->
-                    currency.code to (exchangeRates[currency.code]?.toString() ?: "")
+                    val rate = exchangeRates[currency.code]
+                    currency.code to (rate?.let { formatExchangeRate(it) } ?: "")
                 }
         )
     }
+    var toForeign by remember(homeCurrency, exchangeRates) {
+        mutableStateOf(
+            AppCurrency.entries
+                .filter { it != homeCurrency }
+                .associate { currency ->
+                    val rate = exchangeRates[currency.code]
+                    currency.code to (
+                        rate?.takeIf { it > 0 }?.let { formatExchangeRate(1.0 / it) } ?: ""
+                    )
+                }
+        )
+    }
+
+    fun onToHomeChanged(code: String, input: String) {
+        val filtered = input.filter { it.isDigit() || it == '.' }
+        toHome = toHome + (code to filtered)
+        filtered.toDoubleOrNull()?.takeIf { it > 0 }?.let { rate ->
+            toForeign = toForeign + (code to formatExchangeRate(1.0 / rate))
+        }
+    }
+
+    fun onToForeignChanged(code: String, input: String) {
+        val filtered = input.filter { it.isDigit() || it == '.' }
+        toForeign = toForeign + (code to filtered)
+        filtered.toDoubleOrNull()?.takeIf { it > 0 }?.let { inverse ->
+            toHome = toHome + (code to formatExchangeRate(1.0 / inverse))
+        }
+    }
+
     SectionCard(title = stringResource(R.string.section_exchange_rates)) {
         Text(
             stringResource(R.string.exchange_rates_help),
             fontSize = 12.sp,
             color = FinanceColors.TextSoft
         )
-        Spacer(Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(8.dp))
         OutlinedButton(
             onClick = onFetchLive,
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(stringResource(R.string.fetch_live_rates))
         }
-        Spacer(Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(10.dp))
         AppCurrency.entries.filter { it != homeCurrency }.forEach { foreign ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedTextField(
+                        value = toHome[foreign.code].orEmpty(),
+                        onValueChange = { onToHomeChanged(foreign.code, it) },
+                        label = {
+                            Text(
+                                stringResource(
+                                    R.string.rate_one_in_home,
+                                    foreign.code,
+                                    homeCurrency.code
+                                )
+                            )
+                        },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        singleLine = true,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Button(
+                        onClick = {
+                            toHome[foreign.code]?.toDoubleOrNull()?.takeIf { it > 0 }?.let {
+                                onSave(foreign.code, it)
+                            }
+                        },
+                        enabled = toHome[foreign.code]?.toDoubleOrNull()?.let { it > 0 } == true
+                    ) { Text(stringResource(R.string.action_save)) }
+                }
+                Spacer(modifier = Modifier.height(6.dp))
                 OutlinedTextField(
-                    value = values[foreign.code].orEmpty(),
-                    onValueChange = { input ->
-                        values = values + (foreign.code to input.filter { it.isDigit() || it == '.' })
-                    },
+                    value = toForeign[foreign.code].orEmpty(),
+                    onValueChange = { onToForeignChanged(foreign.code, it) },
                     label = {
                         Text(
                             stringResource(
                                 R.string.rate_one_in_home,
-                                foreign.code,
-                                homeCurrency.code
+                                homeCurrency.code,
+                                foreign.code
                             )
                         )
                     },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.fillMaxWidth()
                 )
-                Button(
-                    onClick = {
-                        values[foreign.code]?.toDoubleOrNull()?.takeIf { it > 0 }?.let {
-                            onSave(foreign.code, it)
-                        }
-                    },
-                    enabled = values[foreign.code]?.toDoubleOrNull()?.let { it > 0 } == true
-                ) { Text(stringResource(R.string.action_save)) }
             }
-            Spacer(Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
         }
     }
 }
@@ -961,6 +1010,18 @@ private fun AboutSettingsTab() {
     var showAbout by remember { mutableStateOf(false) }
     var showExitConfirm by remember { mutableStateOf(false) }
     val appName = stringResource(R.string.app_name)
+    val features = listOf(
+        R.string.feature_profiles_title to R.string.feature_profiles_desc,
+        R.string.feature_currency_title to R.string.feature_currency_desc,
+        R.string.feature_wallets_title to R.string.feature_wallets_desc,
+        R.string.feature_budgets_title to R.string.feature_budgets_desc,
+        R.string.feature_transactions_title to R.string.feature_transactions_desc,
+        R.string.feature_recurring_title to R.string.feature_recurring_desc,
+        R.string.feature_reports_title to R.string.feature_reports_desc,
+        R.string.feature_security_title to R.string.feature_security_desc,
+        R.string.feature_widget_title to R.string.feature_widget_desc,
+        R.string.feature_languages_title to R.string.feature_languages_desc
+    )
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -1000,9 +1061,46 @@ private fun AboutSettingsTab() {
                         )
                     }
                 }
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    stringResource(R.string.about_tagline),
+                    fontSize = 12.5.sp,
+                    color = FinanceColors.TextSoft
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    stringResource(R.string.beta_expires_notice),
+                    fontSize = 12.sp,
+                    color = FinanceColors.Warn
+                )
                 Spacer(modifier = Modifier.height(12.dp))
                 OutlinedButton(onClick = { showAbout = true }) {
                     Text(stringResource(R.string.about_box))
+                }
+            }
+        }
+
+        item {
+            SectionCard(title = stringResource(R.string.section_app_features)) {
+                features.forEachIndexed { index, (titleRes, descRes) ->
+                    if (index > 0) {
+                        HorizontalDivider(
+                            modifier = Modifier.padding(vertical = 10.dp),
+                            color = FinanceColors.TextSoft.copy(alpha = 0.25f)
+                        )
+                    }
+                    Text(
+                        stringResource(titleRes),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = FinanceColors.Text
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        stringResource(descRes),
+                        fontSize = 12.5.sp,
+                        color = FinanceColors.TextSoft
+                    )
                 }
             }
         }
@@ -1086,6 +1184,13 @@ private fun AboutBoxDialog(onDismiss: () -> Unit) {
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
                     color = FinanceColors.Text
+                )
+                Spacer(modifier = Modifier.height(14.dp))
+                Text(
+                    stringResource(R.string.beta_expires_notice),
+                    fontSize = 13.sp,
+                    color = FinanceColors.Warn,
+                    textAlign = TextAlign.Center
                 )
             }
         },

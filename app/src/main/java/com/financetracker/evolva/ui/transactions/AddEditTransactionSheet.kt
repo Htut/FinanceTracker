@@ -58,6 +58,7 @@ import com.financetracker.evolva.data.locale.CategoryLabels
 import com.financetracker.evolva.data.model.Categories
 import com.financetracker.evolva.data.model.Account
 import com.financetracker.evolva.data.model.AppCurrency
+import com.financetracker.evolva.data.model.formatExchangeRate
 import com.financetracker.evolva.data.model.Transaction
 import com.financetracker.evolva.data.model.TransactionType
 import com.financetracker.evolva.data.model.TransferDirection
@@ -118,11 +119,16 @@ fun AddEditTransactionSheet(
     }
     var rateText by remember(existing, homeCurrency, exchangeRates) {
         val selected = AppCurrency.fromCode(existing?.currencyCode ?: homeCurrency.code)
+        val rate = if (selected == homeCurrency) 1.0
+        else existing?.exchangeRate ?: exchangeRates[selected.code] ?: 1.0
+        mutableStateOf(formatExchangeRate(rate))
+    }
+    var inverseRateText by remember(existing, homeCurrency, exchangeRates) {
+        val selected = AppCurrency.fromCode(existing?.currencyCode ?: homeCurrency.code)
+        val rate = if (selected == homeCurrency) 1.0
+        else existing?.exchangeRate ?: exchangeRates[selected.code] ?: 1.0
         mutableStateOf(
-            formatPlain(
-                if (selected == homeCurrency) 1.0
-                else existing?.exchangeRate ?: exchangeRates[selected.code] ?: 1.0
-            )
+            if (rate > 0.0) formatExchangeRate(1.0 / rate) else ""
         )
     }
     var receiptUri by remember(existing) { mutableStateOf(existing?.receiptUri) }
@@ -284,8 +290,10 @@ fun AddEditTransactionSheet(
                         selected = selectedCurrency == currency,
                         onClick = {
                             selectedCurrency = currency
-                            rateText = if (currency == homeCurrency) "1"
-                            else formatPlain(exchangeRates[currency.code] ?: 1.0)
+                            val rate = if (currency == homeCurrency) 1.0
+                            else exchangeRates[currency.code] ?: 1.0
+                            rateText = formatExchangeRate(rate)
+                            inverseRateText = if (rate > 0.0) formatExchangeRate(1.0 / rate) else ""
                         },
                         label = { Text("${currency.symbol} ${currency.code}") }
                     )
@@ -296,7 +304,11 @@ fun AddEditTransactionSheet(
                 OutlinedTextField(
                     value = rateText,
                     onValueChange = { input ->
-                        rateText = input.filter { it.isDigit() || it == '.' }
+                        val filtered = input.filter { it.isDigit() || it == '.' }
+                        rateText = filtered
+                        filtered.toDoubleOrNull()?.takeIf { it > 0.0 }?.let { rate ->
+                            inverseRateText = formatExchangeRate(1.0 / rate)
+                        }
                     },
                     label = {
                         Text(
@@ -304,6 +316,29 @@ fun AddEditTransactionSheet(
                                 R.string.rate_one_in_home,
                                 selectedCurrency.code,
                                 homeCurrency.code
+                            )
+                        )
+                    },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = inverseRateText,
+                    onValueChange = { input ->
+                        val filtered = input.filter { it.isDigit() || it == '.' }
+                        inverseRateText = filtered
+                        filtered.toDoubleOrNull()?.takeIf { it > 0.0 }?.let { inverse ->
+                            rateText = formatExchangeRate(1.0 / inverse)
+                        }
+                    },
+                    label = {
+                        Text(
+                            stringResource(
+                                R.string.rate_one_in_home,
+                                homeCurrency.code,
+                                selectedCurrency.code
                             )
                         )
                     },

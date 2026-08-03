@@ -196,3 +196,11 @@ fun formatAmountNumber(amount: Double, currency: AppCurrency): String {
     val formatted = String.format(pattern, abs)
     return (if (amount < 0) "-" else "") + formatted
 }
+
+/** Compact FX rate for linked forward/inverse fields (no grouping). */
+fun formatExchangeRate(rate: Double): String {
+    if (rate == rate.toLong().toDouble()) return rate.toLong().toString()
+    return String.format(java.util.Locale.US, "%.8f", rate)
+        .trimEnd('0')
+        .trimEnd('.')
+}

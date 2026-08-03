@@ -2,10 +2,10 @@ package com.financetracker.evolva.ui.navigation
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.AccountBalanceWallet
-import androidx.compose.material.icons.filled.Assessment
-import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.automirrored.filled.ShowChart
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.PieChart
+import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
@@ -26,6 +26,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -62,10 +63,10 @@ private val tabs = listOf(
 )
 
 private fun iconFor(tab: Tab) = when (tab) {
-    Tab.Dashboard -> Icons.Filled.Dashboard
-    Tab.Transactions -> Icons.AutoMirrored.Filled.List
-    Tab.Budget -> Icons.Filled.AccountBalanceWallet
-    Tab.Report -> Icons.Filled.Assessment
+    Tab.Dashboard -> Icons.Filled.Home
+    Tab.Transactions -> Icons.Filled.ReceiptLong
+    Tab.Budget -> Icons.Filled.PieChart
+    Tab.Report -> Icons.AutoMirrored.Filled.ShowChart
     Tab.Settings -> Icons.Filled.Settings
 }
 
@@ -133,7 +134,16 @@ fun AppNavGraph(viewModel: MainViewModel) {
                             }
                         },
                         icon = { Icon(iconFor(tab), contentDescription = label) },
-                        label = { Text(label) }
+                        label = {
+                            Text(
+                                text = label,
+                                fontSize = 11.sp,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        },
+                        alwaysShowLabel = true
                     )
                 }
             }

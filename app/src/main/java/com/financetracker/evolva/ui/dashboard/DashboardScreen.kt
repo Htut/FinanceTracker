@@ -2,6 +2,7 @@ package com.financetracker.evolva.ui.dashboard
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,6 +16,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -36,9 +39,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -130,27 +137,13 @@ fun DashboardScreen(viewModel: MainViewModel) {
 
     var detailMetric by remember { mutableStateOf<DashboardMetric?>(null) }
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        item {
-            Column {
-                Text(
-                    stringResource(R.string.dashboard_title),
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = FinanceColors.Text
-                )
-                Text(
-                    stringResource(R.string.dashboard_subtitle),
-                    fontSize = 13.sp,
-                    color = FinanceColors.TextSoft
-                )
-            }
-        }
-
+    Column(modifier = Modifier.fillMaxSize()) {
+        DashboardBrandHeader()
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
         item {
             DateFilterBar(
                 filter = dateFilter,
@@ -240,6 +233,7 @@ fun DashboardScreen(viewModel: MainViewModel) {
         }
 
         item { Spacer(modifier = Modifier.height(70.dp)) }
+        }
     }
 
     detailMetric?.let { metric ->
@@ -270,6 +264,52 @@ private data class StatEntry(
     val color: Color,
     val metric: DashboardMetric
 )
+
+@Composable
+private fun DashboardBrandHeader() {
+    val appName = stringResource(R.string.dashboard_title)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                Brush.horizontalGradient(
+                    listOf(
+                        FinanceColors.Header,
+                        FinanceColors.Accent.copy(alpha = 0.92f)
+                    )
+                )
+            )
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Image(
+            painter = painterResource(R.drawable.app_logo),
+            contentDescription = appName,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .size(48.dp)
+                .clip(RoundedCornerShape(12.dp))
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                appName,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = FinanceColors.OnHeader,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                stringResource(R.string.dashboard_subtitle),
+                fontSize = 13.sp,
+                color = FinanceColors.OnHeader.copy(alpha = 0.85f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
 
 @Composable
 private fun ResponsiveStatGrid(
