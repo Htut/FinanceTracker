@@ -368,7 +368,8 @@ class MainViewModel(
                 return@launch
             }
             try {
-                val name = profiles.value.find { it.id == profileId }?.displayName ?: "profile"
+                val name = profiles.value.find { it.id == profileId }?.displayName
+                    ?: str(R.string.msg_profile_fallback)
                 profileSession.deleteTemplateProfile(profileId)
                 _undoAction.value = null
                 _infoMessage.value = str(R.string.msg_deleted_profile, name)

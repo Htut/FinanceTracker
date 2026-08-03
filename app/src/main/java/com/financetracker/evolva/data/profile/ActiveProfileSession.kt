@@ -1,6 +1,7 @@
 package com.financetracker.evolva.data.profile
 
 import android.content.Context
+import com.financetracker.evolva.R
 import com.financetracker.evolva.data.AppConstants
 import com.financetracker.evolva.data.db.FinanceDatabase
 import com.financetracker.evolva.data.model.AppCurrency
@@ -108,7 +109,7 @@ class ActiveProfileSession(
     suspend fun setupTemplate(template: AppTemplate, displayName: String): TrackerProfile = mutex.withLock {
         val existing = appSettings.profiles.first()
         if (existing.any { it.templateId == template.id }) {
-            throw IllegalStateException("Template already set up")
+            throw IllegalStateException(appContext.getString(R.string.msg_template_already_setup))
         }
         val profile = TrackerProfile(
             id = UUID.randomUUID().toString(),
@@ -121,7 +122,7 @@ class ActiveProfileSession(
         appSettings.setActiveProfileId(profile.id)
         val repo = requireRepository()
         repo.ensureDefaultAccounts()
-        val rows = template.generate()
+        val rows = template.generate(appContext)
         repo.addTransactions(rows)
         template.budgets?.let { repo.setBudgetsIfAbsent(it) }
         profile

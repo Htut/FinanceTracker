@@ -341,7 +341,7 @@ private fun MetricDetailDialog(
 
     fun saveBytes(format: DetailShareFormat, uri: android.net.Uri?) {
         if (uri == null) return
-        val bytes = DetailExport.buildBytes(format, title, subtitle, transactions, currency)
+        val bytes = DetailExport.buildBytes(context, format, title, subtitle, transactions, currency)
         context.contentResolver.openOutputStream(uri)?.let { stream ->
             DetailExport.writeToStream(stream, bytes)
         }

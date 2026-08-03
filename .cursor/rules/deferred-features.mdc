@@ -1,0 +1,13 @@
+---
+description: Deferred features — do not start until user asks
+alwaysApply: true
+---
+
+# Deferred features
+
+Do **not** implement these until the user explicitly asks:
+
+- **Google Drive / cloud backup** — local JSON export/import only for now; Drive OAuth + sync later
+- Related cloud ideas (Firebase, server sync) stay deferred with the same rule
+
+When the user asks for cloud backup, revisit Drive requirements: Google Cloud OAuth client, Drive API, prefer `drive.appdata` + manual backup/restore first.

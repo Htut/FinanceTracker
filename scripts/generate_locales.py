@@ -60,10 +60,14 @@ def to_android_xml_text(value: str) -> str:
 
     - Real newlines become literal \\n
     - Unescaped " and ' become \\" and \\'
-    - Existing \\", \\', \\n, &amp;, &quot;, %% are left intact (no double-escape)
+    - Bare & becomes &amp; (existing &amp; / &quot; / &lt; / &gt; kept)
+    - Existing \\", \\', \\n, %% are left intact (no double-escape)
     """
     # Normalize newlines to Android literal \n sequences
     value = value.replace("\r\n", "\n").replace("\r", "\n").replace("\n", "\\n")
+
+    # Escape bare ampersands without double-escaping existing entities
+    value = re.sub(r"&(?!amp;|lt;|gt;|quot;|apos;|#\d+;|#x[0-9a-fA-F]+;)", "&amp;", value)
 
     out: list[str] = []
     i = 0

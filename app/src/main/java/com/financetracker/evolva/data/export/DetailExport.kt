@@ -9,6 +9,7 @@ import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
 import android.net.Uri
 import androidx.core.content.FileProvider
+import com.financetracker.evolva.R
 import com.financetracker.evolva.data.model.AppCurrency
 import com.financetracker.evolva.data.model.Transaction
 import com.financetracker.evolva.data.model.TransactionType
@@ -31,6 +32,7 @@ object DetailExport {
         "${fileBase(title)}.${format.extension}"
 
     fun buildBytes(
+        context: Context,
         format: DetailShareFormat,
         title: String,
         subtitle: String,
@@ -38,11 +40,11 @@ object DetailExport {
         currency: AppCurrency,
         summaryLines: List<String> = emptyList()
     ): ByteArray = when (format) {
-        DetailShareFormat.TEXT -> buildText(title, subtitle, transactions, currency, summaryLines)
+        DetailShareFormat.TEXT -> buildText(context, title, subtitle, transactions, currency, summaryLines)
             .toByteArray(Charsets.UTF_8)
-        DetailShareFormat.CSV -> buildCsv(title, subtitle, transactions, currency, summaryLines)
+        DetailShareFormat.CSV -> buildCsv(context, title, subtitle, transactions, currency, summaryLines)
             .toByteArray(Charsets.UTF_8)
-        DetailShareFormat.PDF -> buildPdf(title, subtitle, transactions, currency, summaryLines)
+        DetailShareFormat.PDF -> buildPdf(context, title, subtitle, transactions, currency, summaryLines)
     }
 
     /** Opens the full Android share sheet for the chosen format. */
@@ -55,7 +57,7 @@ object DetailExport {
         currency: AppCurrency,
         summaryLines: List<String> = emptyList()
     ) {
-        val bytes = buildBytes(format, title, subtitle, transactions, currency, summaryLines)
+        val bytes = buildBytes(context, format, title, subtitle, transactions, currency, summaryLines)
         val file = writeCacheFile(context, fileName(title, format), bytes)
         val uri = FileProvider.getUriForFile(
             context,
@@ -63,7 +65,7 @@ object DetailExport {
             file
         )
         val subject = "$title · $subtitle"
-        val previewText = buildText(title, subtitle, transactions, currency, summaryLines)
+        val previewText = buildText(context, title, subtitle, transactions, currency, summaryLines)
 
         val send = Intent(Intent.ACTION_SEND).apply {
             type = format.mimeType
@@ -82,7 +84,10 @@ object DetailExport {
 
         grantUriToResolvers(context, send, uri)
 
-        val chooser = Intent.createChooser(send, "Share via").apply {
+        val chooser = Intent.createChooser(
+            send,
+            context.getString(R.string.export_share_via)
+        ).apply {
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         context.startActivity(chooser)
@@ -114,6 +119,7 @@ object DetailExport {
     }
 
     fun buildText(
+        context: Context,
         title: String,
         subtitle: String,
         transactions: List<Transaction>,
@@ -121,9 +127,11 @@ object DetailExport {
         summaryLines: List<String> = emptyList()
     ): String = buildString {
         appendLine(title)
-        appendLine("Filter: $subtitle")
-        appendLine("Currency: ${currency.symbol} (${currency.code})")
-        appendLine("${transactions.size} transaction(s)")
+        appendLine("${context.getString(R.string.export_filter)}: $subtitle")
+        appendLine(
+            "${context.getString(R.string.export_currency)}: ${currency.symbol} (${currency.code})"
+        )
+        appendLine(context.getString(R.string.export_transactions_count, transactions.size))
         if (summaryLines.isNotEmpty()) {
             appendLine()
             summaryLines.forEach { appendLine(it) }
@@ -135,6 +143,7 @@ object DetailExport {
     }
 
     fun buildCsv(
+        context: Context,
         title: String,
         subtitle: String,
         transactions: List<Transaction>,
@@ -142,19 +151,29 @@ object DetailExport {
         summaryLines: List<String> = emptyList()
     ): String {
         val sb = StringBuilder()
-        sb.appendLine(csv("Report", title))
-        sb.appendLine(csv("Filter", subtitle))
-        sb.appendLine(csv("Currency", "${currency.symbol} (${currency.code})"))
-        sb.appendLine(csv("Count", transactions.size.toString()))
+        sb.appendLine(csv(context.getString(R.string.export_report), title))
+        sb.appendLine(csv(context.getString(R.string.export_filter), subtitle))
+        sb.appendLine(
+            csv(
+                context.getString(R.string.export_currency),
+                "${currency.symbol} (${currency.code})"
+            )
+        )
+        sb.appendLine(csv(context.getString(R.string.export_count), transactions.size.toString()))
         summaryLines.forEach { line ->
             val parts = line.split(":", limit = 2)
             if (parts.size == 2) sb.appendLine(csv(parts[0].trim(), parts[1].trim()))
-            else sb.appendLine(csv("Summary", line))
+            else sb.appendLine(csv(context.getString(R.string.export_summary), line))
         }
         sb.appendLine()
         sb.appendLine(
-            listOf("Date", "Type", "Category", "Amount", "Note")
-                .joinToString(",") { csvEscape(it) }
+            listOf(
+                context.getString(R.string.export_col_date),
+                context.getString(R.string.export_col_type),
+                context.getString(R.string.export_col_category),
+                context.getString(R.string.export_col_amount),
+                context.getString(R.string.export_col_note)
+            ).joinToString(",") { csvEscape(it) }
         )
         transactions.forEach { tx ->
             val amount = signedAmount(tx)
@@ -172,6 +191,7 @@ object DetailExport {
     }
 
     fun buildPdf(
+        context: Context,
         title: String,
         subtitle: String,
         transactions: List<Transaction>,
@@ -225,10 +245,16 @@ object DetailExport {
 
         canvas.drawText(title, margin, y + titlePaint.textSize, titlePaint)
         y += titlePaint.textSize + 8f
-        canvas.drawText("Filter: $subtitle", margin, y + bodyPaint.textSize, softPaint)
+        canvas.drawText(
+            "${context.getString(R.string.export_filter)}: $subtitle",
+            margin,
+            y + bodyPaint.textSize,
+            softPaint
+        )
         y += lineHeight
         canvas.drawText(
-            "Currency: ${currency.symbol} (${currency.code}) · ${transactions.size} transaction(s)",
+            "${context.getString(R.string.export_currency)}: ${currency.symbol} (${currency.code}) · " +
+                context.getString(R.string.export_transactions_count, transactions.size),
             margin,
             y + bodyPaint.textSize,
             softPaint
@@ -245,9 +271,24 @@ object DetailExport {
         val colCategory = margin + 110f
         val colAmount = pageWidth - margin - 90f
 
-        canvas.drawText("Date", colDate, y + headingPaint.textSize, headingPaint)
-        canvas.drawText("Category / Note", colCategory, y + headingPaint.textSize, headingPaint)
-        canvas.drawText("Amount", colAmount, y + headingPaint.textSize, headingPaint)
+        canvas.drawText(
+            context.getString(R.string.export_col_date),
+            colDate,
+            y + headingPaint.textSize,
+            headingPaint
+        )
+        canvas.drawText(
+            context.getString(R.string.export_col_category_note),
+            colCategory,
+            y + headingPaint.textSize,
+            headingPaint
+        )
+        canvas.drawText(
+            context.getString(R.string.export_col_amount),
+            colAmount,
+            y + headingPaint.textSize,
+            headingPaint
+        )
         y += lineHeight + 4f
 
         transactions.forEach { tx ->

@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.financetracker.evolva.R
 import com.financetracker.evolva.data.model.AppCurrency
 import com.financetracker.evolva.data.model.AppLanguage
 import com.financetracker.evolva.data.profile.ProfileIds
@@ -97,7 +98,7 @@ class SettingsDataStore(private val context: Context) {
         context.dataStore.edit { prefs ->
             val list = decodeProfiles(prefs[profileRegistryKey]).toMutableList()
             if (list.any { it.templateId == profile.templateId }) {
-                throw IllegalStateException("Template already set up")
+                throw IllegalStateException(context.getString(R.string.msg_template_already_setup))
             }
             list.add(profile)
             prefs[profileRegistryKey] = json.encodeToString(profileListSerializer, list)

@@ -99,7 +99,7 @@ fun ReportScreen(viewModel: MainViewModel) {
 
     fun saveBytes(format: DetailShareFormat, uri: android.net.Uri?) {
         if (uri == null) return
-        val bytes = DetailExport.buildBytes(format, title, subtitle, monthTxs, currency, summaryLines)
+        val bytes = DetailExport.buildBytes(context, format, title, subtitle, monthTxs, currency, summaryLines)
         context.contentResolver.openOutputStream(uri)?.let { stream ->
             DetailExport.writeToStream(stream, bytes)
         }
