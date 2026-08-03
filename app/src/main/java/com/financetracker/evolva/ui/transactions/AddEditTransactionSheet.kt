@@ -460,7 +460,8 @@ fun AddEditTransactionSheet(
                                 1.0
                             } else {
                                 rateText.toDoubleOrNull() ?: return@Button
-                            }
+                            },
+                            locked = existing?.locked ?: false
                         )
                         onSave(tx, repeatMonthly)
                     },

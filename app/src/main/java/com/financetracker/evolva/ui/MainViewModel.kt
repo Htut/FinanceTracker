@@ -13,6 +13,7 @@ import com.financetracker.evolva.data.locale.LocaleHelper
 import com.financetracker.evolva.data.model.Account
 import com.financetracker.evolva.data.model.AppCurrency
 import com.financetracker.evolva.data.model.AppLanguage
+import com.financetracker.evolva.data.model.AutoLockRule
 import com.financetracker.evolva.data.model.Budget
 import com.financetracker.evolva.data.model.Categories
 import com.financetracker.evolva.data.model.DateFilter
@@ -38,6 +39,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 import java.time.YearMonth
 
 sealed class ImportResult {
@@ -110,6 +112,10 @@ class MainViewModel(
     val budgetAlertsEnabled: StateFlow<Boolean> = profileSession.budgetAlertsEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
+    val autoLockRule: StateFlow<AutoLockRule> =
+        profileSession.autoLockRule
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AutoLockRule.OFF)
+
     private val _dateFilter = MutableStateFlow<DateFilter>(DateFilter.All)
     val dateFilter: StateFlow<DateFilter> = _dateFilter
 
@@ -140,6 +146,10 @@ class MainViewModel(
             settingsDataStore.hasAppPassword.collect { has ->
                 if (!has) _unlocked.value = true
             }
+        }
+        viewModelScope.launch {
+            combine(transactions, autoLockRule) { txs, rule -> txs to rule }
+                .collect { (txs, rule) -> applyAutoLocks(txs, rule) }
         }
     }
 
@@ -188,6 +198,29 @@ class MainViewModel(
 
     fun setViewOnlyMode(enabled: Boolean) {
         viewModelScope.launch { settingsDataStore.setViewOnlyMode(enabled) }
+    }
+
+    fun setAutoLockRule(rule: AutoLockRule) {
+        viewModelScope.launch {
+            profileSettings.setAutoLockRule(rule)
+            applyAutoLocks(transactions.value, rule)
+        }
+    }
+
+    fun setTransactionLocked(id: String, locked: Boolean) {
+        if (viewOnlyMode.value) return
+        viewModelScope.launch {
+            val existing = transactions.value.find { it.id == id } ?: return@launch
+            if (existing.locked == locked) return@launch
+            repository.updateTransaction(existing.copy(locked = locked))
+        }
+    }
+
+    private suspend fun applyAutoLocks(txs: List<Transaction>, rule: AutoLockRule) {
+        if (rule == AutoLockRule.OFF || txs.isEmpty()) return
+        val today = LocalDate.now()
+        txs.filter { !it.locked && rule.shouldLock(it.date, today) }
+            .forEach { repository.updateTransaction(it.copy(locked = true)) }
     }
 
     fun setExchangeRate(foreignCode: String, rateToHome: Double) {
@@ -287,13 +320,18 @@ class MainViewModel(
 
     fun updateTransaction(transaction: Transaction) {
         if (viewOnlyMode.value) return
-        viewModelScope.launch { repository.updateTransaction(transaction) }
+        viewModelScope.launch {
+            val existing = transactions.value.find { it.id == transaction.id }
+            if (existing?.locked == true) return@launch
+            repository.updateTransaction(transaction)
+        }
     }
 
     fun deleteTransaction(id: String, context: Context? = null) {
         if (viewOnlyMode.value) return
         viewModelScope.launch {
             val existing = transactions.value.find { it.id == id } ?: return@launch
+            if (existing.locked) return@launch
             repository.deleteTransaction(id)
             context?.let { ReceiptStore.deleteIfOwned(it, existing.receiptUri) }
             _undoAction.value = UndoAction.DeleteTransaction(existing)

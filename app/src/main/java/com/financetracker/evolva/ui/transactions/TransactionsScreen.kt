@@ -324,11 +324,18 @@ fun TransactionsScreen(viewModel: MainViewModel) {
                             formattedAmount = amountLabel,
                             readOnly = viewOnly,
                             onClick = {
-                                sheetTransaction = tx
-                                isNew = false
-                                showSheet = true
+                                if (!tx.locked) {
+                                    sheetTransaction = tx
+                                    isNew = false
+                                    showSheet = true
+                                }
                             },
-                            onDelete = { pendingDelete = tx }
+                            onDelete = {
+                                if (!tx.locked) pendingDelete = tx
+                            },
+                            onToggleLock = {
+                                viewModel.setTransactionLocked(tx.id, !tx.locked)
+                            }
                         )
                         HorizontalDivider(color = FinanceColors.Border)
                     }

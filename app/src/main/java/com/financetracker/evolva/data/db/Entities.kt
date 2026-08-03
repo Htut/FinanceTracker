@@ -36,7 +36,8 @@ data class TransactionEntity(
     val accountId: String? = null,
     val receiptUri: String? = null,
     val currencyCode: String? = null,
-    val exchangeRate: Double? = null
+    val exchangeRate: Double? = null,
+    val locked: Boolean = false
 )
 
 @Entity(tableName = "budgets")
@@ -90,7 +91,8 @@ fun TransactionEntity.toDomain() = Transaction(
     accountId = accountId,
     receiptUri = receiptUri,
     currencyCode = currencyCode,
-    exchangeRate = exchangeRate
+    exchangeRate = exchangeRate,
+    locked = locked
 )
 
 fun Transaction.toEntity() = TransactionEntity(
@@ -106,7 +108,8 @@ fun Transaction.toEntity() = TransactionEntity(
     accountId = accountId,
     receiptUri = receiptUri,
     currencyCode = currencyCode,
-    exchangeRate = exchangeRate
+    exchangeRate = exchangeRate,
+    locked = locked
 )
 
 fun BudgetEntity.toDomain() = Budget(category = category, limit = limitAmount)

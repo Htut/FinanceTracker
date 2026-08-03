@@ -64,6 +64,7 @@ import com.financetracker.evolva.data.AppConstants
 import com.financetracker.evolva.data.backup.BackupManager
 import com.financetracker.evolva.data.model.AppCurrency
 import com.financetracker.evolva.data.model.AppLanguage
+import com.financetracker.evolva.data.model.AutoLockRule
 import com.financetracker.evolva.data.model.RecurringRule
 import com.financetracker.evolva.data.model.TransactionType
 import com.financetracker.evolva.data.model.TransferDirection
@@ -854,6 +855,7 @@ private fun BackupSettingsTab(viewModel: MainViewModel) {
 private fun SecuritySettingsTab(viewModel: MainViewModel) {
     val hasPassword by viewModel.hasAppPassword.collectAsState()
     val viewOnly by viewModel.viewOnlyMode.collectAsState()
+    val autoLockRule by viewModel.autoLockRule.collectAsState()
     val context = LocalContext.current
     val activity = context as Activity
     val scope = rememberCoroutineScope()
@@ -946,6 +948,41 @@ private fun SecuritySettingsTab(viewModel: MainViewModel) {
                         checked = viewOnly,
                         onCheckedChange = viewModel::setViewOnlyMode
                     )
+                }
+            }
+        }
+
+        item {
+            SectionCard(title = stringResource(R.string.section_auto_lock)) {
+                Text(
+                    stringResource(R.string.auto_lock_help),
+                    fontSize = 12.5.sp,
+                    color = FinanceColors.TextSoft
+                )
+                Spacer(modifier.height(10.dp))
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(
+                        listOf(
+                            AutoLockRule.OFF to R.string.auto_lock_off,
+                            AutoLockRule.AFTER_7_DAYS to R.string.auto_lock_7_days,
+                            AutoLockRule.AFTER_30_DAYS to R.string.auto_lock_30_days,
+                            AutoLockRule.AFTER_90_DAYS to R.string.auto_lock_90_days,
+                            AutoLockRule.PREVIOUS_MONTHS to R.string.auto_lock_prev_months
+                        ),
+                        key = { it.first.days }
+                    ) { (rule, labelRes) ->
+                        FilterChip(
+                            selected = autoLockRule == rule,
+                            onClick = { viewModel.setAutoLockRule(rule) },
+                            label = {
+                                Text(
+                                    text = stringResource(labelRes),
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
+                            }
+                        )
+                    }
                 }
             }
         }
