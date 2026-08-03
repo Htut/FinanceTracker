@@ -367,7 +367,8 @@ fun SeriesBarChart(
     labels: List<String>,
     values: List<Float>,
     barColor: Color,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    barColors: List<Color>? = null
 ) {
     Canvas(modifier = modifier.fillMaxWidth().height(200.dp).padding(vertical = 8.dp)) {
         val n = labels.size
@@ -386,8 +387,9 @@ fun SeriesBarChart(
             val v = values.getOrElse(i) { 0f }
             val h = (chartHeight - yFor(v)).coerceAtLeast(0f)
             val left = i * groupWidth + (groupWidth - barWidth) / 2f
+            val color = barColors?.getOrElse(i) { barColor } ?: barColor
             drawRoundRect(
-                color = barColor,
+                color = color,
                 topLeft = Offset(left, chartHeight - h),
                 size = Size(barWidth, h),
                 cornerRadius = CornerRadius(3.dp.toPx())

@@ -178,6 +178,8 @@
     <string name="report_title">Report</string>
     <string name="report_summary">Summary</string>
     <string name="report_top_categories">Top expense categories</string>
+    <string name="report_income_vs_expense">Income vs Expense (last 6 months)</string>
+    <string name="report_month_breakdown">Month breakdown</string>
     <string name="share_or_save_report">Share or save report</string>
     <string name="jump_to_this_month">Jump to this month</string>
     <string name="month_label">Month</string>
