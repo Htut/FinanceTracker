@@ -44,7 +44,12 @@ class DriveBackupClient(private val appContext: Context) {
     suspend fun authorize(): DriveAuthOutcome = withContext(Dispatchers.Main) {
         runCatching {
             val request = AuthorizationRequest.builder()
-                .setRequestedScopes(listOf(Scope(DriveScopes.DRIVE_APPDATA)))
+                .setRequestedScopes(
+                    listOf(
+                        Scope(DriveScopes.DRIVE_APPDATA),
+                        Scope("email")
+                    )
+                )
                 .build()
             val result = authClient.authorize(request).await()
             if (result.hasResolution()) {
@@ -76,7 +81,12 @@ class DriveBackupClient(private val appContext: Context) {
     suspend fun silentAccessToken(): String? = withContext(Dispatchers.Main) {
         runCatching {
             val request = AuthorizationRequest.builder()
-                .setRequestedScopes(listOf(Scope(DriveScopes.DRIVE_APPDATA)))
+                .setRequestedScopes(
+                    listOf(
+                        Scope(DriveScopes.DRIVE_APPDATA),
+                        Scope("email")
+                    )
+                )
                 .build()
             val result = authClient.authorize(request).await()
             if (result.hasResolution()) {
@@ -99,7 +109,9 @@ class DriveBackupClient(private val appContext: Context) {
         if (token != null) {
             runCatching {
                 authClient.clearToken(
-                    ClearTokenRequest.builder().setToken(token).build()
+                    ClearTokenRequest.builder()
+                        .setToken(token)
+                        .build()
                 ).await()
             }
         }
