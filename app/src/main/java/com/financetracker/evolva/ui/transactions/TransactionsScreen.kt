@@ -50,11 +50,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.financetracker.evolva.R
 import com.financetracker.evolva.data.locale.CategoryLabels
+import com.financetracker.evolva.data.model.AppCurrency
 import com.financetracker.evolva.data.model.Categories
 import com.financetracker.evolva.data.model.Transaction
 import com.financetracker.evolva.data.model.TransactionQuery
+import com.financetracker.evolva.data.model.TransactionSort
 import com.financetracker.evolva.data.model.TransactionType
-import com.financetracker.evolva.data.model.AppCurrency
+import com.financetracker.evolva.data.model.applySort
 import com.financetracker.evolva.data.model.filteredByQuery
 import com.financetracker.evolva.data.model.formatAmount
 import com.financetracker.evolva.data.model.homeAmount
@@ -63,6 +65,7 @@ import com.financetracker.evolva.ui.UndoAction
 import com.financetracker.evolva.ui.components.DateFilterBar
 import com.financetracker.evolva.ui.components.TransactionRow
 import com.financetracker.evolva.ui.theme.FinanceColors
+
 @Composable
 fun TransactionsScreen(viewModel: MainViewModel) {
     val context = LocalContext.current
