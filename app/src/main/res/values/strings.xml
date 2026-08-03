@@ -98,6 +98,11 @@
     <string name="search_hint">Search note, category…</string>
     <string name="clear_filters">Clear filters</string>
     <string name="transaction_deleted">Transaction deleted</string>
+    <string name="delete_transaction_title">Delete transaction?</string>
+    <string name="delete_transaction_message">Delete \"%1$s\"? You can undo this afterward.</string>
+    <string name="view_only_mode">View only</string>
+    <string name="view_only_mode_help">When on, transactions cannot be added, edited, or deleted. Turn off anytime in Settings.</string>
+    <string name="view_only_banner">View only — editing is locked</string>
     <string name="all_transactions_cleared">All transactions cleared</string>
     <string name="no_transactions_filter">No transactions in this date filter. Tap + to add one, or set up a sample profile in Settings → Data.</string>
     <string name="no_transactions_match">No transactions match your search/filters.</string>

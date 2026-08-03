@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
@@ -42,6 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -75,6 +77,7 @@ fun TransactionsScreen(viewModel: MainViewModel) {
     val accounts by viewModel.accounts.collectAsState()
     val exchangeRates by viewModel.exchangeRates.collectAsState()
     val undoAction by viewModel.undoAction.collectAsState()
+    val viewOnly by viewModel.viewOnlyMode.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(undoAction) {
@@ -91,6 +94,7 @@ fun TransactionsScreen(viewModel: MainViewModel) {
     var sheetTransaction by remember { mutableStateOf<Transaction?>(null) }
     var showSheet by remember { mutableStateOf(false) }
     var isNew by remember { mutableStateOf(true) }
+    var pendingDelete by remember { mutableStateOf<Transaction?>(null) }
 
     var search by remember { mutableStateOf("") }
     var typeFilter by remember { mutableStateOf<TransactionType?>(null) }
@@ -136,16 +140,27 @@ fun TransactionsScreen(viewModel: MainViewModel) {
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
-            FloatingActionButton(onClick = {
-                sheetTransaction = null
-                isNew = true
-                showSheet = true
-            }) {
-                Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.add_transaction))
+            if (!viewOnly) {
+                FloatingActionButton(onClick = {
+                    sheetTransaction = null
+                    isNew = true
+                    showSheet = true
+                }) {
+                    Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.add_transaction))
+                }
             }
         }
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            if (viewOnly) {
+                Text(
+                    stringResource(R.string.view_only_banner),
+                    fontSize = 12.5.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = FinanceColors.TextSoft,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                )
+            }
             DateFilterBar(
                 filter = dateFilter,
                 onFilterChange = viewModel::setDateFilter,
@@ -307,12 +322,13 @@ fun TransactionsScreen(viewModel: MainViewModel) {
                         TransactionRow(
                             transaction = tx,
                             formattedAmount = amountLabel,
+                            readOnly = viewOnly,
                             onClick = {
                                 sheetTransaction = tx
                                 isNew = false
                                 showSheet = true
                             },
-                            onDelete = { viewModel.deleteTransaction(tx.id, context) }
+                            onDelete = { pendingDelete = tx }
                         )
                         HorizontalDivider(color = FinanceColors.Border)
                     }
@@ -322,7 +338,33 @@ fun TransactionsScreen(viewModel: MainViewModel) {
         }
     }
 
-    if (showSheet) {
+    pendingDelete?.let { tx ->
+        val label = CategoryLabels.display(context, tx.category)
+        AlertDialog(
+            onDismissRequest = { pendingDelete = null },
+            title = { Text(stringResource(R.string.delete_transaction_title)) },
+            text = {
+                Text(stringResource(R.string.delete_transaction_message, label))
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteTransaction(tx.id, context)
+                        pendingDelete = null
+                    }
+                ) {
+                    Text(stringResource(R.string.action_delete))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDelete = null }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            }
+        )
+    }
+
+    if (showSheet && !viewOnly) {
         AddEditTransactionSheet(
             existing = sheetTransaction,
             accounts = accounts,

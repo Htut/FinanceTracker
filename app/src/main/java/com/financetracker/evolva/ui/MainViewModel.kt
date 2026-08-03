@@ -90,6 +90,9 @@ class MainViewModel(
     val hasAppPassword: StateFlow<Boolean> = settingsDataStore.hasAppPassword
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
+    val viewOnlyMode: StateFlow<Boolean> = settingsDataStore.viewOnlyMode
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
     val filterAutoCloseSeconds: StateFlow<Int> = profileSession.filterAutoCloseSeconds
         .stateIn(
             viewModelScope,
@@ -183,6 +186,10 @@ class MainViewModel(
         }
     }
 
+    fun setViewOnlyMode(enabled: Boolean) {
+        viewModelScope.launch { settingsDataStore.setViewOnlyMode(enabled) }
+    }
+
     fun setExchangeRate(foreignCode: String, rateToHome: Double) {
         viewModelScope.launch { profileSettings.setExchangeRate(foreignCode, rateToHome) }
     }
@@ -257,6 +264,7 @@ class MainViewModel(
     }
 
     fun addTransaction(transaction: Transaction, repeatMonthly: Boolean) {
+        if (viewOnlyMode.value) return
         viewModelScope.launch {
             if (repeatMonthly) {
                 val rule = RecurringRule(
@@ -278,10 +286,12 @@ class MainViewModel(
     }
 
     fun updateTransaction(transaction: Transaction) {
+        if (viewOnlyMode.value) return
         viewModelScope.launch { repository.updateTransaction(transaction) }
     }
 
     fun deleteTransaction(id: String, context: Context? = null) {
+        if (viewOnlyMode.value) return
         viewModelScope.launch {
             val existing = transactions.value.find { it.id == id } ?: return@launch
             repository.deleteTransaction(id)
@@ -291,6 +301,7 @@ class MainViewModel(
     }
 
     fun clearAllTransactions() {
+        if (viewOnlyMode.value) return
         viewModelScope.launch {
             val snapshot = transactions.value
             repository.clearTransactions()
@@ -323,10 +334,12 @@ class MainViewModel(
     }
 
     fun setBudget(category: String, limit: Double) {
+        if (viewOnlyMode.value) return
         viewModelScope.launch { repository.setBudget(category, limit) }
     }
 
     fun deleteBudget(category: String) {
+        if (viewOnlyMode.value) return
         viewModelScope.launch { repository.deleteBudget(category) }
     }
 

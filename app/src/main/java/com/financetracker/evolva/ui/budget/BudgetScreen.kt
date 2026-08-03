@@ -71,6 +71,7 @@ fun BudgetScreen(viewModel: MainViewModel) {
     val dateFilter by viewModel.dateFilter.collectAsState()
     val filterAutoCloseSeconds by viewModel.filterAutoCloseSeconds.collectAsState()
     val customExpenseCategories by viewModel.customExpenseCategories.collectAsState()
+    val viewOnly by viewModel.viewOnlyMode.collectAsState()
 
     fun fmt(v: Double) = formatAmount(v, currency)
 
@@ -182,7 +183,10 @@ fun BudgetScreen(viewModel: MainViewModel) {
                                         color = FinanceColors.TextSoft
                                     )
                                 }
-                                TextButton(onClick = { viewModel.deleteBudget(budget.category) }) {
+                                TextButton(
+                                    onClick = { viewModel.deleteBudget(budget.category) },
+                                    enabled = !viewOnly
+                                ) {
                                     Text(stringResource(R.string.action_delete), color = FinanceColors.Expense)
                                 }
                             }
@@ -261,7 +265,7 @@ fun BudgetScreen(viewModel: MainViewModel) {
                             newLimitText = ""
                         }
                     },
-                    enabled = newLimitText.toDoubleOrNull()?.let { it > 0 } ?: false
+                    enabled = !viewOnly && (newLimitText.toDoubleOrNull()?.let { it > 0 } ?: false)
                 ) { Text(stringResource(R.string.save_limit)) }
             }
         }

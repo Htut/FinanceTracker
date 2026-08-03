@@ -161,7 +161,8 @@ fun TransactionRow(
     formattedAmount: String,
     onClick: () -> Unit,
     onDelete: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    readOnly: Boolean = false
 ) {
     val context = LocalContext.current
     val color = typeColor(transaction.type)
@@ -179,7 +180,10 @@ fun TransactionRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .then(
+                if (readOnly) Modifier
+                else Modifier.clickable(onClick = onClick)
+            )
             .padding(vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -210,21 +214,23 @@ fun TransactionRow(
             fontWeight = FontWeight.Medium,
             color = color
         )
-        IconButton(onClick = onClick) {
-            Icon(
-                Icons.Filled.Edit,
-                contentDescription = stringResource(R.string.action_edit),
-                tint = FinanceColors.TextSoft,
-                modifier = Modifier.size(18.dp)
-            )
-        }
-        IconButton(onClick = onDelete) {
-            Icon(
-                Icons.Filled.Delete,
-                contentDescription = stringResource(R.string.action_delete),
-                tint = FinanceColors.Expense,
-                modifier = Modifier.size(18.dp)
-            )
+        if (!readOnly) {
+            IconButton(onClick = onClick) {
+                Icon(
+                    Icons.Filled.Edit,
+                    contentDescription = stringResource(R.string.action_edit),
+                    tint = FinanceColors.TextSoft,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+            IconButton(onClick = onDelete) {
+                Icon(
+                    Icons.Filled.Delete,
+                    contentDescription = stringResource(R.string.action_delete),
+                    tint = FinanceColors.Expense,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
         }
     }
 }

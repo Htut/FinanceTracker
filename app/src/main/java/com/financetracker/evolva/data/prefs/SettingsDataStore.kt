@@ -1,6 +1,7 @@
 package com.financetracker.evolva.data.prefs
 
 import android.content.Context
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -27,6 +28,7 @@ class SettingsDataStore(private val context: Context) {
     private val appPasswordHashKey = stringPreferencesKey("app_password_hash")
     private val appThemeKey = stringPreferencesKey("app_theme")
     private val languageKey = stringPreferencesKey("app_language")
+    private val viewOnlyModeKey = booleanPreferencesKey("view_only_mode")
     private val activeProfileIdKey = stringPreferencesKey("active_profile_id")
     private val profileRegistryKey = stringPreferencesKey("profile_registry")
     private val prefsMigratedKey = stringPreferencesKey("profile_prefs_migrated_v1")
@@ -59,6 +61,11 @@ class SettingsDataStore(private val context: Context) {
 
     val hasAppPassword: Flow<Boolean> = appPasswordHash.map { it.isNotEmpty() }
 
+    /** When true, add/edit/delete of transactions (and similar edits) are disabled. */
+    val viewOnlyMode: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[viewOnlyModeKey] ?: false
+    }
+
     val activeProfileId: Flow<String> = context.dataStore.data.map { prefs ->
         prefs[activeProfileIdKey] ?: ProfileIds.PERSONAL
     }
@@ -69,6 +76,10 @@ class SettingsDataStore(private val context: Context) {
 
     suspend fun setLanguage(language: AppLanguage) {
         context.dataStore.edit { it[languageKey] = language.tag }
+    }
+
+    suspend fun setViewOnlyMode(enabled: Boolean) {
+        context.dataStore.edit { it[viewOnlyModeKey] = enabled }
     }
 
     suspend fun setAppThemeId(themeId: String) {

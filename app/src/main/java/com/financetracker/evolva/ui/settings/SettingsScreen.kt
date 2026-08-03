@@ -853,6 +853,7 @@ private fun BackupSettingsTab(viewModel: MainViewModel) {
 @Composable
 private fun SecuritySettingsTab(viewModel: MainViewModel) {
     val hasPassword by viewModel.hasAppPassword.collectAsState()
+    val viewOnly by viewModel.viewOnlyMode.collectAsState()
     val context = LocalContext.current
     val activity = context as Activity
     val scope = rememberCoroutineScope()
@@ -923,6 +924,33 @@ private fun SecuritySettingsTab(viewModel: MainViewModel) {
         }
 
         item {
+            SectionCard(title = stringResource(R.string.view_only_mode)) {
+                Text(
+                    stringResource(R.string.view_only_mode_help),
+                    fontSize = 12.5.sp,
+                    color = FinanceColors.TextSoft
+                )
+                Spacer(Modifier.height(10.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        stringResource(R.string.view_only_mode),
+                        modifier = Modifier.weight(1f),
+                        fontSize = 14.sp,
+                        color = FinanceColors.Text
+                    )
+                    Switch(
+                        checked = viewOnly,
+                        onCheckedChange = viewModel::setViewOnlyMode
+                    )
+                }
+            }
+        }
+
+        item {
             SectionCard(title = stringResource(R.string.section_danger_zone)) {
                 Text(
                     stringResource(R.string.danger_clear_help),
@@ -934,6 +962,7 @@ private fun SecuritySettingsTab(viewModel: MainViewModel) {
                         dangerError = null
                         showClearConfirm = true
                     },
+                    enabled = !viewOnly,
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = FinanceColors.Expense)
                 ) { Text(stringResource(R.string.clear_all_transactions)) }
             }
