@@ -235,6 +235,41 @@ fun TransactionsScreen(viewModel: MainViewModel) {
                 }
             }
 
+            Text(
+                stringResource(R.string.sort_label),
+                fontSize = 12.sp,
+                color = FinanceColors.TextSoft,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                FilterChip(
+                    selected = sort == ActivitySort.DATE_DESC,
+                    onClick = { sort = ActivitySort.DATE_DESC },
+                    label = { Text(stringResource(R.string.sort_date_newest)) }
+                )
+                FilterChip(
+                    selected = sort == ActivitySort.DATE_ASC,
+                    onClick = { sort = ActivitySort.DATE_ASC },
+                    label = { Text(stringResource(R.string.sort_date_oldest)) }
+                )
+                FilterChip(
+                    selected = sort == ActivitySort.AMOUNT_DESC,
+                    onClick = { sort = ActivitySort.AMOUNT_DESC },
+                    label = { Text(stringResource(R.string.sort_amount_high)) }
+                )
+                FilterChip(
+                    selected = sort == ActivitySort.AMOUNT_ASC,
+                    onClick = { sort = ActivitySort.AMOUNT_ASC },
+                    label = { Text(stringResource(R.string.sort_amount_low)) }
+                )
+            }
+
             TextButton(
                 onClick = { showAdvanced = !showAdvanced },
                 modifier = Modifier.padding(horizontal = 8.dp)
