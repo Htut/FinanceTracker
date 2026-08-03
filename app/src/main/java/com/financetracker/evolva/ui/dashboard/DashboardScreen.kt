@@ -4,6 +4,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -20,11 +21,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -61,11 +64,13 @@ import com.financetracker.evolva.data.export.DetailShareFormat
 import com.financetracker.evolva.data.locale.CategoryLabels
 import com.financetracker.evolva.data.model.AppCurrency
 import com.financetracker.evolva.data.model.Transaction
+import com.financetracker.evolva.data.model.TransactionSort
 import com.financetracker.evolva.data.model.TransactionType
 import com.financetracker.evolva.data.model.TransferDirection
 import com.financetracker.evolva.data.model.formatAmount
 import com.financetracker.evolva.data.model.formatAmountNumber
 import com.financetracker.evolva.data.model.formatRecordedAt
+import com.financetracker.evolva.data.model.applySort
 import com.financetracker.evolva.ui.MainViewModel
 import com.financetracker.evolva.ui.components.DateFilterBar
 import com.financetracker.evolva.ui.components.DonutChart
@@ -350,8 +355,8 @@ private fun ResponsiveStatGrid(
     }
 }
 
-private fun transactionsForMetric(metric: DashboardMetric, transactions: List<Transaction>): List<Transaction> {
-    val filtered = when (metric) {
+private fun transactionsForMetric(metric: DashboardMetric, transactions: List<Transaction>): List<Transaction> =
+    when (metric) {
         DashboardMetric.INCOME, DashboardMetric.AVG_INCOME ->
             transactions.filter { it.type == TransactionType.INCOME }
         DashboardMetric.EXPENSE, DashboardMetric.AVG_EXPENSE ->
@@ -362,11 +367,6 @@ private fun transactionsForMetric(metric: DashboardMetric, transactions: List<Tr
             transactions.filter { it.type == TransactionType.TRANSFER }
         DashboardMetric.NET -> transactions
     }
-    return filtered.sortedWith(
-        compareByDescending<Transaction> { it.date }
-            .thenByDescending { it.time ?: java.time.LocalTime.MIN }
-    )
-}
 
 @Composable
 private fun MetricDetailDialog(
@@ -378,10 +378,12 @@ private fun MetricDetailDialog(
 ) {
     val context = LocalContext.current
     var showShareOptions by remember { mutableStateOf(false) }
+    var sort by remember { mutableStateOf(TransactionSort.DATE_DESC) }
+    val sortedTxs = remember(transactions, sort) { transactions.applySort(sort) }
 
     fun saveBytes(format: DetailShareFormat, uri: android.net.Uri?) {
         if (uri == null) return
-        val bytes = DetailExport.buildBytes(context, format, title, subtitle, transactions, currency)
+        val bytes = DetailExport.buildBytes(context, format, title, subtitle, sortedTxs, currency)
         context.contentResolver.openOutputStream(uri)?.let { stream ->
             DetailExport.writeToStream(stream, bytes)
         }
@@ -447,7 +449,7 @@ private fun MetricDetailDialog(
                                 stringResource(
                                     R.string.currency_tx_count,
                                     "${currency.symbol} (${currency.code})",
-                                    transactions.size
+                                    sortedTxs.size
                                 ),
                                 fontSize = 11.sp,
                                 color = FinanceColors.OnHeader.copy(alpha = 0.75f),
@@ -458,7 +460,7 @@ private fun MetricDetailDialog(
                         }
                         IconButton(
                             onClick = { showShareOptions = true },
-                            enabled = transactions.isNotEmpty()
+                            enabled = sortedTxs.isNotEmpty()
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.Share,
@@ -470,7 +472,38 @@ private fun MetricDetailDialog(
                     HorizontalDivider(color = FinanceColors.Accent.copy(alpha = 0.45f), thickness = 2.dp)
                 }
 
-                if (transactions.isEmpty()) {
+                if (sortedTxs.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState())
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        FilterChip(
+                            selected = sort == TransactionSort.DATE_DESC,
+                            onClick = { sort = TransactionSort.DATE_DESC },
+                            label = { Text(stringResource(R.string.sort_date_newest)) }
+                        )
+                        FilterChip(
+                            selected = sort == TransactionSort.DATE_ASC,
+                            onClick = { sort = TransactionSort.DATE_ASC },
+                            label = { Text(stringResource(R.string.sort_date_oldest)) }
+                        )
+                        FilterChip(
+                            selected = sort == TransactionSort.AMOUNT_DESC,
+                            onClick = { sort = TransactionSort.AMOUNT_DESC },
+                            label = { Text(stringResource(R.string.sort_amount_high)) }
+                        )
+                        FilterChip(
+                            selected = sort == TransactionSort.AMOUNT_ASC,
+                            onClick = { sort = TransactionSort.AMOUNT_ASC },
+                            label = { Text(stringResource(R.string.sort_amount_low)) }
+                        )
+                    }
+                }
+
+                if (sortedTxs.isEmpty()) {
                     Box(
                         modifier = Modifier
                             .weight(1f)
@@ -487,7 +520,7 @@ private fun MetricDetailDialog(
                             .weight(1f)
                             .fillMaxWidth()
                     ) {
-                        itemsIndexed(transactions, key = { _, tx -> tx.id }) { index, tx ->
+                        itemsIndexed(sortedTxs, key = { _, tx -> tx.id }) { index, tx ->
                             CompactDetailRow(
                                 tx = tx,
                                 currency = currency,
@@ -528,7 +561,7 @@ private fun MetricDetailDialog(
                             onClick = {
                                 showShareOptions = false
                                 DetailExport.share(
-                                    context, format, title, subtitle, transactions, currency
+                                    context, format, title, subtitle, sortedTxs, currency
                                 )
                             },
                             modifier = Modifier.fillMaxWidth()

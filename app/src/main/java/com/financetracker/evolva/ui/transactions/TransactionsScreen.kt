@@ -63,15 +63,6 @@ import com.financetracker.evolva.ui.UndoAction
 import com.financetracker.evolva.ui.components.DateFilterBar
 import com.financetracker.evolva.ui.components.TransactionRow
 import com.financetracker.evolva.ui.theme.FinanceColors
-import java.time.LocalTime
-
-private enum class ActivitySort {
-    DATE_DESC,
-    DATE_ASC,
-    AMOUNT_DESC,
-    AMOUNT_ASC
-}
-
 @Composable
 fun TransactionsScreen(viewModel: MainViewModel) {
     val context = LocalContext.current
@@ -109,7 +100,7 @@ fun TransactionsScreen(viewModel: MainViewModel) {
     var minAmountText by remember { mutableStateOf("") }
     var maxAmountText by remember { mutableStateOf("") }
     var showAdvanced by remember { mutableStateOf(false) }
-    var sort by remember { mutableStateOf(ActivitySort.DATE_DESC) }
+    var sort by remember { mutableStateOf(TransactionSort.DATE_DESC) }
 
     val categoryOptions = remember(transactions, customExpenseCategories, typeFilter) {
         val fromData = transactions
@@ -139,25 +130,7 @@ fun TransactionsScreen(viewModel: MainViewModel) {
     }
 
     val sorted = remember(transactions, query, sort) {
-        val filtered = transactions.filteredByQuery(query)
-        when (sort) {
-            ActivitySort.DATE_DESC -> filtered.sortedWith(
-                compareByDescending<Transaction> { it.date }
-                    .thenByDescending { it.time ?: LocalTime.MIN }
-            )
-            ActivitySort.DATE_ASC -> filtered.sortedWith(
-                compareBy<Transaction> { it.date }
-                    .thenBy { it.time ?: LocalTime.MIN }
-            )
-            ActivitySort.AMOUNT_DESC -> filtered.sortedWith(
-                compareByDescending<Transaction> { it.homeAmount() }
-                    .thenByDescending { it.date }
-            )
-            ActivitySort.AMOUNT_ASC -> filtered.sortedWith(
-                compareBy<Transaction> { it.homeAmount() }
-                    .thenByDescending { it.date }
-            )
-        }
+        transactions.filteredByQuery(query).applySort(sort)
     }
 
     Scaffold(
@@ -249,23 +222,23 @@ fun TransactionsScreen(viewModel: MainViewModel) {
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 FilterChip(
-                    selected = sort == ActivitySort.DATE_DESC,
-                    onClick = { sort = ActivitySort.DATE_DESC },
+                    selected = sort == TransactionSort.DATE_DESC,
+                    onClick = { sort = TransactionSort.DATE_DESC },
                     label = { Text(stringResource(R.string.sort_date_newest)) }
                 )
                 FilterChip(
-                    selected = sort == ActivitySort.DATE_ASC,
-                    onClick = { sort = ActivitySort.DATE_ASC },
+                    selected = sort == TransactionSort.DATE_ASC,
+                    onClick = { sort = TransactionSort.DATE_ASC },
                     label = { Text(stringResource(R.string.sort_date_oldest)) }
                 )
                 FilterChip(
-                    selected = sort == ActivitySort.AMOUNT_DESC,
-                    onClick = { sort = ActivitySort.AMOUNT_DESC },
+                    selected = sort == TransactionSort.AMOUNT_DESC,
+                    onClick = { sort = TransactionSort.AMOUNT_DESC },
                     label = { Text(stringResource(R.string.sort_amount_high)) }
                 )
                 FilterChip(
-                    selected = sort == ActivitySort.AMOUNT_ASC,
-                    onClick = { sort = ActivitySort.AMOUNT_ASC },
+                    selected = sort == TransactionSort.AMOUNT_ASC,
+                    onClick = { sort = TransactionSort.AMOUNT_ASC },
                     label = { Text(stringResource(R.string.sort_amount_low)) }
                 )
             }
