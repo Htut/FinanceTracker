@@ -121,6 +121,11 @@
     <string name="min_amount">Min amount</string>
     <string name="max_amount">Max amount</string>
     <string name="show_advanced_filters">Amount &amp; category filters</string>
+    <string name="sort_label">Sort</string>
+    <string name="sort_date_newest">Date ↓</string>
+    <string name="sort_date_oldest">Date ↑</string>
+    <string name="sort_amount_high">Amount ↓</string>
+    <string name="sort_amount_low">Amount ↑</string>
     <string name="hide_advanced_filters">Hide amount &amp; category filters</string>
     <string name="edit_transaction">Edit Transaction</string>
     <string name="add_transaction_title">Add Transaction</string>

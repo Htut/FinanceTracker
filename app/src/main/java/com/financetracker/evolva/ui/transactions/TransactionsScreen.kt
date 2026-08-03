@@ -65,6 +65,13 @@ import com.financetracker.evolva.ui.components.TransactionRow
 import com.financetracker.evolva.ui.theme.FinanceColors
 import java.time.LocalTime
 
+private enum class ActivitySort {
+    DATE_DESC,
+    DATE_ASC,
+    AMOUNT_DESC,
+    AMOUNT_ASC
+}
+
 @Composable
 fun TransactionsScreen(viewModel: MainViewModel) {
     val context = LocalContext.current
@@ -102,6 +109,7 @@ fun TransactionsScreen(viewModel: MainViewModel) {
     var minAmountText by remember { mutableStateOf("") }
     var maxAmountText by remember { mutableStateOf("") }
     var showAdvanced by remember { mutableStateOf(false) }
+    var sort by remember { mutableStateOf(ActivitySort.DATE_DESC) }
 
     val categoryOptions = remember(transactions, customExpenseCategories, typeFilter) {
         val fromData = transactions
@@ -130,11 +138,26 @@ fun TransactionsScreen(viewModel: MainViewModel) {
         )
     }
 
-    val sorted = remember(transactions, query) {
-        transactions.filteredByQuery(query).sortedWith(
-            compareByDescending<Transaction> { it.date }
-                .thenByDescending { it.time ?: LocalTime.MIN }
-        )
+    val sorted = remember(transactions, query, sort) {
+        val filtered = transactions.filteredByQuery(query)
+        when (sort) {
+            ActivitySort.DATE_DESC -> filtered.sortedWith(
+                compareByDescending<Transaction> { it.date }
+                    .thenByDescending { it.time ?: LocalTime.MIN }
+            )
+            ActivitySort.DATE_ASC -> filtered.sortedWith(
+                compareBy<Transaction> { it.date }
+                    .thenBy { it.time ?: LocalTime.MIN }
+            )
+            ActivitySort.AMOUNT_DESC -> filtered.sortedWith(
+                compareByDescending<Transaction> { it.homeAmount() }
+                    .thenByDescending { it.date }
+            )
+            ActivitySort.AMOUNT_ASC -> filtered.sortedWith(
+                compareBy<Transaction> { it.homeAmount() }
+                    .thenByDescending { it.date }
+            )
+        }
     }
 
     Scaffold(
