@@ -4,7 +4,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -21,13 +20,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -78,6 +75,7 @@ import com.financetracker.evolva.ui.components.IncomeExpenseBarChart
 import com.financetracker.evolva.ui.components.LineChart
 import com.financetracker.evolva.ui.components.SectionCard
 import com.financetracker.evolva.ui.components.StatCard
+import com.financetracker.evolva.ui.components.TransactionSortChips
 import com.financetracker.evolva.ui.theme.FinanceColors
 import java.time.YearMonth
 import java.time.format.TextStyle
@@ -473,34 +471,11 @@ private fun MetricDetailDialog(
                 }
 
                 if (sortedTxs.isNotEmpty()) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState())
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        FilterChip(
-                            selected = sort == TransactionSort.DATE_DESC,
-                            onClick = { sort = TransactionSort.DATE_DESC },
-                            label = { Text(stringResource(R.string.sort_date_newest)) }
-                        )
-                        FilterChip(
-                            selected = sort == TransactionSort.DATE_ASC,
-                            onClick = { sort = TransactionSort.DATE_ASC },
-                            label = { Text(stringResource(R.string.sort_date_oldest)) }
-                        )
-                        FilterChip(
-                            selected = sort == TransactionSort.AMOUNT_DESC,
-                            onClick = { sort = TransactionSort.AMOUNT_DESC },
-                            label = { Text(stringResource(R.string.sort_amount_high)) }
-                        )
-                        FilterChip(
-                            selected = sort == TransactionSort.AMOUNT_ASC,
-                            onClick = { sort = TransactionSort.AMOUNT_ASC },
-                            label = { Text(stringResource(R.string.sort_amount_low)) }
-                        )
-                    }
+                    TransactionSortChips(
+                        sort = sort,
+                        onSortChange = { sort = it },
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
                 }
 
                 if (sortedTxs.isEmpty()) {

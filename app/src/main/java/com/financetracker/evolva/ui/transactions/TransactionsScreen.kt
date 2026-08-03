@@ -64,6 +64,7 @@ import com.financetracker.evolva.ui.MainViewModel
 import com.financetracker.evolva.ui.UndoAction
 import com.financetracker.evolva.ui.components.DateFilterBar
 import com.financetracker.evolva.ui.components.TransactionRow
+import com.financetracker.evolva.ui.components.TransactionSortChips
 import com.financetracker.evolva.ui.theme.FinanceColors
 
 @Composable
@@ -217,34 +218,10 @@ fun TransactionsScreen(viewModel: MainViewModel) {
                 color = FinanceColors.TextSoft,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
             )
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                FilterChip(
-                    selected = sort == TransactionSort.DATE_DESC,
-                    onClick = { sort = TransactionSort.DATE_DESC },
-                    label = { Text(stringResource(R.string.sort_date_newest)) }
-                )
-                FilterChip(
-                    selected = sort == TransactionSort.DATE_ASC,
-                    onClick = { sort = TransactionSort.DATE_ASC },
-                    label = { Text(stringResource(R.string.sort_date_oldest)) }
-                )
-                FilterChip(
-                    selected = sort == TransactionSort.AMOUNT_DESC,
-                    onClick = { sort = TransactionSort.AMOUNT_DESC },
-                    label = { Text(stringResource(R.string.sort_amount_high)) }
-                )
-                FilterChip(
-                    selected = sort == TransactionSort.AMOUNT_ASC,
-                    onClick = { sort = TransactionSort.AMOUNT_ASC },
-                    label = { Text(stringResource(R.string.sort_amount_low)) }
-                )
-            }
+            TransactionSortChips(
+                sort = sort,
+                onSortChange = { sort = it }
+            )
 
             TextButton(
                 onClick = { showAdvanced = !showAdvanced },
