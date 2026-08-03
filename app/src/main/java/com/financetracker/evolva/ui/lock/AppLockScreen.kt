@@ -29,17 +29,21 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.fragment.app.FragmentActivity
 import com.financetracker.evolva.R
+import com.financetracker.evolva.data.security.BiometricAuth
 import com.financetracker.evolva.data.security.DeviceCredentialAuth
 import com.financetracker.evolva.ui.theme.FinanceColors
 
 @Composable
 fun AppLockScreen(
     onUnlockWithPassword: (String, (Boolean) -> Unit) -> Unit,
-    onUnlocked: () -> Unit
+    onUnlocked: () -> Unit,
+    biometricUnlockEnabled: Boolean = false
 ) {
     val context = LocalContext.current
     val activity = context as? Activity
+    val fragmentActivity = context as? FragmentActivity
     var password by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
 
@@ -49,6 +53,10 @@ fun AppLockScreen(
         if (result.resultCode == Activity.RESULT_OK) {
             onUnlocked()
         }
+    }
+
+    val biometricAvailable = remember(fragmentActivity) {
+        fragmentActivity != null && BiometricAuth.canAuthenticate(context)
     }
 
     Column(
@@ -100,13 +108,36 @@ fun AppLockScreen(
             Text(stringResource(R.string.unlock_button))
         }
 
-        val biometricTitle = stringResource(R.string.unlock_biometric_title, stringResource(R.string.app_name))
-        val biometricDesc = stringResource(R.string.unlock_biometric_desc)
+        if (biometricUnlockEnabled && biometricAvailable && fragmentActivity != null) {
+            val bioTitle = stringResource(R.string.unlock_biometric_title, stringResource(R.string.app_name))
+            val bioSubtitle = stringResource(R.string.unlock_with_biometric_desc)
+            val cancelLabel = stringResource(R.string.action_cancel)
+            Spacer(modifier = Modifier.height(10.dp))
+            OutlinedButton(
+                onClick = {
+                    error = null
+                    BiometricAuth.authenticate(
+                        activity = fragmentActivity,
+                        title = bioTitle,
+                        subtitle = bioSubtitle,
+                        negativeButton = cancelLabel,
+                        onSuccess = onUnlocked,
+                        onError = { msg -> error = msg }
+                    )
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(stringResource(R.string.unlock_with_biometric))
+            }
+        }
+
+        val deviceTitle = stringResource(R.string.unlock_biometric_title, stringResource(R.string.app_name))
+        val deviceDesc = stringResource(R.string.unlock_biometric_desc)
         val confirmIntent = activity?.let { act ->
             DeviceCredentialAuth.createConfirmIntent(
                 act,
-                title = biometricTitle,
-                description = biometricDesc
+                title = deviceTitle,
+                description = deviceDesc
             )
         }
         if (confirmIntent != null) {

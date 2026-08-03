@@ -29,6 +29,7 @@ class SettingsDataStore(private val context: Context) {
     private val appThemeKey = stringPreferencesKey("app_theme")
     private val languageKey = stringPreferencesKey("app_language")
     private val viewOnlyModeKey = booleanPreferencesKey("view_only_mode")
+    private val biometricUnlockKey = booleanPreferencesKey("biometric_unlock_enabled")
     private val activeProfileIdKey = stringPreferencesKey("active_profile_id")
     private val profileRegistryKey = stringPreferencesKey("profile_registry")
     private val prefsMigratedKey = stringPreferencesKey("profile_prefs_migrated_v1")
@@ -66,6 +67,14 @@ class SettingsDataStore(private val context: Context) {
         prefs[viewOnlyModeKey] ?: false
     }
 
+    /**
+     * When true (and an app password is set), the lock screen may offer
+     * fingerprint/face unlock. Independent of the device PIN/pattern button.
+     */
+    val biometricUnlockEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[biometricUnlockKey] ?: false
+    }
+
     val activeProfileId: Flow<String> = context.dataStore.data.map { prefs ->
         prefs[activeProfileIdKey] ?: ProfileIds.PERSONAL
     }
@@ -80,6 +89,10 @@ class SettingsDataStore(private val context: Context) {
 
     suspend fun setViewOnlyMode(enabled: Boolean) {
         context.dataStore.edit { it[viewOnlyModeKey] = enabled }
+    }
+
+    suspend fun setBiometricUnlockEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[biometricUnlockKey] = enabled }
     }
 
     suspend fun setAppThemeId(themeId: String) {

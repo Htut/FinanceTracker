@@ -145,5 +145,10 @@ class FinanceRepository(private val dao: FinanceDao) {
         dao.insertRecurringRules(rules.map { it.toEntity() })
     }
 
+    suspend fun replaceTransactions(transactions: List<Transaction>) {
+        dao.deleteAllTransactions()
+        dao.insertTransactions(transactions.map { it.toEntity() })
+    }
+
     suspend fun clearTransactions() = dao.deleteAllTransactions()
 }

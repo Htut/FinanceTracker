@@ -96,6 +96,9 @@ class MainViewModel(
     val viewOnlyMode: StateFlow<Boolean> = settingsDataStore.viewOnlyMode
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
+    val biometricUnlockEnabled: StateFlow<Boolean> = settingsDataStore.biometricUnlockEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
     val filterAutoCloseSeconds: StateFlow<Int> = profileSession.filterAutoCloseSeconds
         .stateIn(
             viewModelScope,
@@ -194,11 +197,17 @@ class MainViewModel(
         viewModelScope.launch {
             settingsDataStore.setLanguage(language)
             LocaleHelper.apply(language)
+            // Apply regional home-currency preset to the active profile.
+            profileSettings.setCurrency(language.suggestedCurrency)
         }
     }
 
     fun setViewOnlyMode(enabled: Boolean) {
         viewModelScope.launch { settingsDataStore.setViewOnlyMode(enabled) }
+    }
+
+    fun setBiometricUnlockEnabled(enabled: Boolean) {
+        viewModelScope.launch { settingsDataStore.setBiometricUnlockEnabled(enabled) }
     }
 
     fun setAutoLockRule(rule: AutoLockRule) {
@@ -421,6 +430,7 @@ class MainViewModel(
             try {
                 val name = appContext.getString(template.labelRes)
                 val profile = profileSession.setupTemplate(template, name)
+                profileSettings.setCurrency(language.value.suggestedCurrency)
                 _undoAction.value = null
                 _dateFilter.value = DateFilter.All
                 _infoMessage.value = str(R.string.msg_profile_ready, profile.displayName)
@@ -509,6 +519,32 @@ class MainViewModel(
             }
         }
         return ImportResult.Success(importedTransactions.size)
+    }
+
+    /** Import transactions from a CSV matching [BackupManager.toCsv] columns. */
+    fun importCsv(csv: String, replace: Boolean): ImportResult {
+        val imported = BackupManager.parseCsv(csv, currency.value.code)
+            ?: return ImportResult.Invalid
+        if (imported.isEmpty()) return ImportResult.Invalid
+        val customFromCsv = Categories.normalizeCustom(
+            imported.filter { it.type == TransactionType.EXPENSE }.map { it.category }
+        ).filterNot { Categories.isBuiltInExpense(it) }
+
+        viewModelScope.launch {
+            if (replace) {
+                repository.replaceTransactions(imported)
+                _infoMessage.value = str(R.string.msg_csv_replaced, imported.size)
+            } else {
+                repository.mergeIn(imported, emptyList(), emptyList(), emptyList())
+                _infoMessage.value = str(R.string.msg_csv_merged, imported.size)
+            }
+            if (customFromCsv.isNotEmpty()) {
+                profileSettings.setCustomExpenseCategories(
+                    Categories.normalizeCustom(customExpenseCategories.value + customFromCsv)
+                )
+            }
+        }
+        return ImportResult.Success(imported.size)
     }
 }
 
