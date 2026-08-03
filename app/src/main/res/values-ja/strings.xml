@@ -51,7 +51,7 @@
     <string name="label_transfers_net">振替（純額）</string>
     <string name="label_net">純額</string>
     <string name="section_expenses_by_category">カテゴリ別支出</string>
-    <string name="section_income_vs_expense">収入 vs 支出（6か月、点線＝平均）</string>
+    <string name="section_income_vs_expense">収入 vs 支出（点線＝平均）</string>
     <string name="section_savings_growth">貯蓄の推移</string>
     <string name="section_insights">インサイト</string>
     <string name="avg_monthly_income">月平均収入</string>

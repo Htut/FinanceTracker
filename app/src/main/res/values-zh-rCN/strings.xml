@@ -51,7 +51,7 @@
     <string name="label_transfers_net">转账（净额）</string>
     <string name="label_net">净额</string>
     <string name="section_expenses_by_category">按类别支出</string>
-    <string name="section_income_vs_expense">收入 vs 支出（6个月，虚线=平均值）</string>
+    <string name="section_income_vs_expense">收入 vs 支出（虚线=平均值）</string>
     <string name="section_savings_growth">储蓄增长</string>
     <string name="section_insights">洞察</string>
     <string name="avg_monthly_income">月均收入</string>

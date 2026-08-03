@@ -51,7 +51,7 @@
     <string name="label_transfers_net">Переводы (нетто)</string>
     <string name="label_net">Итого</string>
     <string name="section_expenses_by_category">Расходы по категориям</string>
-    <string name="section_income_vs_expense">Доход vs расход (6 мес., пунктир = среднее)</string>
+    <string name="section_income_vs_expense">Доход vs расход (пунктир = среднее)</string>
     <string name="section_savings_growth">Рост сбережений</string>
     <string name="section_insights">Аналитика</string>
     <string name="avg_monthly_income">Средний месячный доход</string>

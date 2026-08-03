@@ -51,7 +51,7 @@
     <string name="label_transfers_net">Trasferimenti (netti)</string>
     <string name="label_net">Netto</string>
     <string name="section_expenses_by_category">Uscite per categoria</string>
-    <string name="section_income_vs_expense">Entrate vs uscite (6 mesi, tratteggiato = media)</string>
+    <string name="section_income_vs_expense">Entrate vs uscite (tratteggiato = media)</string>
     <string name="section_savings_growth">Crescita dei risparmi</string>
     <string name="section_insights">Approfondimenti</string>
     <string name="avg_monthly_income">Entrate medie mensili</string>

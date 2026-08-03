@@ -1,6 +1,7 @@
 package com.financetracker.evolva.data.calc
 
 import com.financetracker.evolva.data.model.Account
+import com.financetracker.evolva.data.model.DateFilter
 import com.financetracker.evolva.data.model.Transaction
 import com.financetracker.evolva.data.model.TransactionType
 import com.financetracker.evolva.data.model.TransferDirection
@@ -87,6 +88,41 @@ object FinanceCalculator {
     /** Last [n] months ending at [end] (inclusive), oldest first. */
     fun lastNMonths(n: Int, end: YearMonth = YearMonth.now()): List<YearMonth> =
         (n - 1 downTo 0).map { end.minusMonths(it.toLong()) }
+
+    /** Inclusive month span from [start] through [end], oldest first. */
+    fun monthsBetween(start: YearMonth, end: YearMonth): List<YearMonth> {
+        if (end.isBefore(start)) return emptyList()
+        return generateSequence(start) { it.plusMonths(1) }
+            .takeWhile { !it.isAfter(end) }
+            .toList()
+    }
+
+    /**
+     * Month buckets for charts under a [DateFilter].
+     * For [DateFilter.All], uses months that appear in [transactions] (or last 6 if empty).
+     */
+    fun monthsFor(
+        filter: DateFilter,
+        transactions: List<Transaction> = emptyList(),
+        now: YearMonth = YearMonth.now()
+    ): List<YearMonth> = when (filter) {
+        is DateFilter.All -> {
+            val active = activeMonths(transactions).sorted()
+            when {
+                active.isEmpty() -> lastNMonths(6, now)
+                active.size == 1 -> active
+                else -> monthsBetween(active.first(), active.last().coerceAtMost(now))
+            }
+        }
+        is DateFilter.Month -> listOf(filter.month)
+        is DateFilter.Year -> {
+            val start = YearMonth.of(filter.year, 1)
+            val end = if (filter.year == now.year) now else YearMonth.of(filter.year, 12)
+            monthsBetween(start, end)
+        }
+        is DateFilter.Range ->
+            monthsBetween(YearMonth.from(filter.start), YearMonth.from(filter.end))
+    }
 
     fun budgetState(spent: Double, limit: Double): BudgetState {
         if (limit <= 0) return BudgetState.NONE

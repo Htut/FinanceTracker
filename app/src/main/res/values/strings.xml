@@ -57,9 +57,17 @@
     <string name="label_transfers_net">Transfers (net)</string>
     <string name="label_net">Net</string>
     <string name="section_expenses_by_category">Expenses by Category</string>
-    <string name="section_income_vs_expense">Income vs Expense (6 mo, dashed = average)</string>
+    <string name="section_income_vs_expense">Income vs Expense (dashed = average)</string>
     <string name="section_savings_growth">Savings Growth</string>
     <string name="section_insights">Insights</string>
+    <string name="section_charts">Charts</string>
+    <string name="chart_date_range">Chart date range</string>
+    <string name="chart_type_donut">Donut</string>
+    <string name="chart_type_bars">Bars</string>
+    <string name="chart_type_line">Line</string>
+    <string name="chart_type_lines">Lines</string>
+    <string name="chart_preset_last_3">Last 3 mo</string>
+    <string name="chart_preset_last_6">Last 6 mo</string>
     <string name="avg_monthly_income">Avg Monthly Income</string>
     <string name="avg_monthly_expense">Avg Monthly Expense</string>
     <string name="avg_monthly_savings">Avg Monthly Savings</string>

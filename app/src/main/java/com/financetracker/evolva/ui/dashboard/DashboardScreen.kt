@@ -4,6 +4,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -20,11 +21,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -60,28 +63,45 @@ import com.financetracker.evolva.data.export.DetailExport
 import com.financetracker.evolva.data.export.DetailShareFormat
 import com.financetracker.evolva.data.locale.CategoryLabels
 import com.financetracker.evolva.data.model.AppCurrency
+import com.financetracker.evolva.data.model.DateFilter
 import com.financetracker.evolva.data.model.Transaction
 import com.financetracker.evolva.data.model.TransactionSort
 import com.financetracker.evolva.data.model.TransactionType
 import com.financetracker.evolva.data.model.TransferDirection
+import com.financetracker.evolva.data.model.applySort
+import com.financetracker.evolva.data.model.filteredBy
 import com.financetracker.evolva.data.model.formatAmount
 import com.financetracker.evolva.data.model.formatAmountNumber
 import com.financetracker.evolva.data.model.formatRecordedAt
-import com.financetracker.evolva.data.model.applySort
 import com.financetracker.evolva.ui.MainViewModel
+import com.financetracker.evolva.ui.components.CategoryBarChart
+import com.financetracker.evolva.ui.components.ChartTypeChips
 import com.financetracker.evolva.ui.components.DateFilterBar
 import com.financetracker.evolva.ui.components.DonutChart
+import com.financetracker.evolva.ui.components.DualLineChart
 import com.financetracker.evolva.ui.components.IncomeExpenseBarChart
 import com.financetracker.evolva.ui.components.LineChart
 import com.financetracker.evolva.ui.components.SectionCard
+import com.financetracker.evolva.ui.components.SeriesBarChart
 import com.financetracker.evolva.ui.components.StatCard
 import com.financetracker.evolva.ui.components.TransactionSortChips
 import com.financetracker.evolva.ui.theme.FinanceColors
+import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.TextStyle
 
 private enum class DashboardMetric {
     INCOME, EXPENSE, SAVINGS, TRANSFER_NET, NET, AVG_INCOME, AVG_EXPENSE, AVG_SAVINGS
+}
+
+private enum class CategoryChartType { DONUT, BARS }
+private enum class IncomeExpenseChartType { BARS, LINES }
+private enum class SavingsChartType { LINE, BARS }
+
+private fun defaultChartFilter(): DateFilter {
+    val end = LocalDate.now()
+    val start = YearMonth.from(end).minusMonths(5).atDay(1)
+    return DateFilter.Range(start, end)
 }
 
 @Composable
@@ -94,38 +114,59 @@ fun DashboardScreen(viewModel: MainViewModel) {
     val dateFilter by viewModel.dateFilter.collectAsState()
     val filterAutoCloseSeconds by viewModel.filterAutoCloseSeconds.collectAsState()
 
+    var chartFilter by remember { mutableStateOf(defaultChartFilter()) }
+    var categoryChartType by remember { mutableStateOf(CategoryChartType.DONUT) }
+    var incomeExpenseChartType by remember { mutableStateOf(IncomeExpenseChartType.BARS) }
+    var savingsChartType by remember { mutableStateOf(SavingsChartType.LINE) }
+
     fun fmt(v: Double) = formatAmount(v, currency)
 
     val totals = remember(transactions) { FinanceCalculator.totals(transactions) }
     val averages = remember(transactions) { FinanceCalculator.averages(totals, transactions) }
 
-    val expenseByCategory = remember(transactions) {
-        transactions.filter { it.type == TransactionType.EXPENSE }
+    val chartTxs = remember(allTransactions, chartFilter) {
+        allTransactions.filteredBy(chartFilter)
+    }
+    val chartAverages = remember(chartTxs) {
+        val t = FinanceCalculator.totals(chartTxs)
+        FinanceCalculator.averages(t, chartTxs)
+    }
+
+    val expenseByCategory = remember(chartTxs) {
+        chartTxs.filter { it.type == TransactionType.EXPENSE }
             .groupBy { it.category }
             .mapValues { (_, txs) -> txs.sumOf { it.amount } }
             .toList()
             .sortedByDescending { it.second }
     }
 
-    val last6Months = remember(transactions) { FinanceCalculator.lastNMonths(6) }
+    val chartMonths = remember(chartFilter, chartTxs) {
+        FinanceCalculator.monthsFor(chartFilter, chartTxs)
+    }
     val locale = LocalConfiguration.current.locales[0]
-    val monthLabels = remember(last6Months, locale) {
-        last6Months.map { it.month.getDisplayName(TextStyle.SHORT, locale) }
+    val monthLabels = remember(chartMonths, locale) {
+        chartMonths.map { it.month.getDisplayName(TextStyle.SHORT, locale) }
     }
-    val incomeSeries = remember(transactions, last6Months) {
-        last6Months.map { FinanceCalculator.sumFor(transactions, TransactionType.INCOME, it).toFloat() }
+    val incomeSeries = remember(chartTxs, chartMonths) {
+        chartMonths.map { FinanceCalculator.sumFor(chartTxs, TransactionType.INCOME, it).toFloat() }
     }
-    val expenseSeries = remember(transactions, last6Months) {
-        last6Months.map { FinanceCalculator.sumFor(transactions, TransactionType.EXPENSE, it).toFloat() }
+    val expenseSeries = remember(chartTxs, chartMonths) {
+        chartMonths.map { FinanceCalculator.sumFor(chartTxs, TransactionType.EXPENSE, it).toFloat() }
     }
-    val savingsTrend = remember(transactions, last6Months) {
-        var cumulative = transactions
-            .filter { it.type == TransactionType.SAVINGS && YearMonth.from(it.date) < last6Months.first() }
-            .sumOf { it.amount }
-        last6Months.map { m ->
-            cumulative += FinanceCalculator.sumFor(transactions, TransactionType.SAVINGS, m)
-            cumulative.toFloat()
+    val savingsTrend = remember(chartTxs, chartMonths, allTransactions) {
+        if (chartMonths.isEmpty()) emptyList()
+        else {
+            var cumulative = allTransactions
+                .filter { it.type == TransactionType.SAVINGS && YearMonth.from(it.date) < chartMonths.first() }
+                .sumOf { it.amount }
+            chartMonths.map { m ->
+                cumulative += FinanceCalculator.sumFor(chartTxs, TransactionType.SAVINGS, m)
+                cumulative.toFloat()
+            }
         }
+    }
+    val savingsMonthly = remember(chartTxs, chartMonths) {
+        chartMonths.map { FinanceCalculator.sumFor(chartTxs, TransactionType.SAVINGS, it).toFloat() }
     }
 
     val localeContext = LocalContext.current
@@ -201,26 +242,111 @@ fun DashboardScreen(viewModel: MainViewModel) {
         }
 
         item {
+            SectionCard(title = stringResource(R.string.section_charts)) {
+                DateFilterBar(
+                    filter = chartFilter,
+                    onFilterChange = { chartFilter = it },
+                    autoCloseSeconds = filterAutoCloseSeconds,
+                    titleRes = R.string.chart_date_range
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                ) {
+                    val end = LocalDate.now()
+                    val last3 = DateFilter.Range(YearMonth.from(end).minusMonths(2).atDay(1), end)
+                    val last6 = DateFilter.Range(YearMonth.from(end).minusMonths(5).atDay(1), end)
+                    FilterChip(
+                        selected = chartFilter == last3,
+                        onClick = { chartFilter = last3 },
+                        label = { Text(stringResource(R.string.chart_preset_last_3)) }
+                    )
+                    FilterChip(
+                        selected = chartFilter == last6,
+                        onClick = { chartFilter = last6 },
+                        label = { Text(stringResource(R.string.chart_preset_last_6)) }
+                    )
+                }
+            }
+        }
+
+        item {
             SectionCard(title = stringResource(R.string.section_expenses_by_category)) {
-                DonutChart(data = expenseByCategory, valueFormatter = { fmt(it) })
+                ChartTypeChips(
+                    options = listOf(
+                        stringResource(R.string.chart_type_donut) to (categoryChartType == CategoryChartType.DONUT),
+                        stringResource(R.string.chart_type_bars) to (categoryChartType == CategoryChartType.BARS)
+                    ),
+                    onSelect = {
+                        categoryChartType = if (it == 0) CategoryChartType.DONUT else CategoryChartType.BARS
+                    }
+                )
+                when (categoryChartType) {
+                    CategoryChartType.DONUT ->
+                        DonutChart(data = expenseByCategory, valueFormatter = { fmt(it) })
+                    CategoryChartType.BARS ->
+                        CategoryBarChart(data = expenseByCategory, valueFormatter = { fmt(it) })
+                }
             }
         }
 
         item {
             SectionCard(title = stringResource(R.string.section_income_vs_expense)) {
-                IncomeExpenseBarChart(
-                    labels = monthLabels,
-                    income = incomeSeries,
-                    expense = expenseSeries,
-                    avgIncome = if (averages.months > 0) averages.income.toFloat() else null,
-                    avgExpense = if (averages.months > 0) averages.expense.toFloat() else null
+                ChartTypeChips(
+                    options = listOf(
+                        stringResource(R.string.chart_type_bars) to (incomeExpenseChartType == IncomeExpenseChartType.BARS),
+                        stringResource(R.string.chart_type_lines) to (incomeExpenseChartType == IncomeExpenseChartType.LINES)
+                    ),
+                    onSelect = {
+                        incomeExpenseChartType =
+                            if (it == 0) IncomeExpenseChartType.BARS else IncomeExpenseChartType.LINES
+                    }
                 )
+                val avgInc = if (chartAverages.months > 0) chartAverages.income.toFloat() else null
+                val avgExp = if (chartAverages.months > 0) chartAverages.expense.toFloat() else null
+                when (incomeExpenseChartType) {
+                    IncomeExpenseChartType.BARS ->
+                        IncomeExpenseBarChart(
+                            labels = monthLabels,
+                            income = incomeSeries,
+                            expense = expenseSeries,
+                            avgIncome = avgInc,
+                            avgExpense = avgExp
+                        )
+                    IncomeExpenseChartType.LINES ->
+                        DualLineChart(
+                            labels = monthLabels,
+                            seriesA = incomeSeries,
+                            seriesB = expenseSeries,
+                            colorA = FinanceColors.Income,
+                            colorB = FinanceColors.Expense,
+                            avgA = avgInc,
+                            avgB = avgExp
+                        )
+                }
             }
         }
 
         item {
             SectionCard(title = stringResource(R.string.section_savings_growth)) {
-                LineChart(labels = monthLabels, values = savingsTrend, lineColor = FinanceColors.Savings)
+                ChartTypeChips(
+                    options = listOf(
+                        stringResource(R.string.chart_type_line) to (savingsChartType == SavingsChartType.LINE),
+                        stringResource(R.string.chart_type_bars) to (savingsChartType == SavingsChartType.BARS)
+                    ),
+                    onSelect = {
+                        savingsChartType = if (it == 0) SavingsChartType.LINE else SavingsChartType.BARS
+                    }
+                )
+                when (savingsChartType) {
+                    SavingsChartType.LINE ->
+                        LineChart(labels = monthLabels, values = savingsTrend, lineColor = FinanceColors.Savings)
+                    SavingsChartType.BARS ->
+                        SeriesBarChart(labels = monthLabels, values = savingsMonthly, barColor = FinanceColors.Savings)
+                }
             }
         }
 

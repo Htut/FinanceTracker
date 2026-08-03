@@ -51,7 +51,7 @@
     <string name="label_transfers_net">Transferler (net)</string>
     <string name="label_net">Net</string>
     <string name="section_expenses_by_category">Kategoriye göre giderler</string>
-    <string name="section_income_vs_expense">Gelir vs Gider (6 ay, kesikli = ortalama)</string>
+    <string name="section_income_vs_expense">Gelir vs Gider (kesikli = ortalama)</string>
     <string name="section_savings_growth">Tasarruf büyümesi</string>
     <string name="section_insights">İçgörüler</string>
     <string name="avg_monthly_income">Ort. aylık gelir</string>

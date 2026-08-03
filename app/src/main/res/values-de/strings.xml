@@ -51,7 +51,7 @@
     <string name="label_transfers_net">Überweisungen (netto)</string>
     <string name="label_net">Netto</string>
     <string name="section_expenses_by_category">Ausgaben nach Kategorie</string>
-    <string name="section_income_vs_expense">Einnahmen vs. Ausgaben (6 Mon., gestrichelt = Durchschnitt)</string>
+    <string name="section_income_vs_expense">Einnahmen vs. Ausgaben (gestrichelt = Durchschnitt)</string>
     <string name="section_savings_growth">Sparwachstum</string>
     <string name="section_insights">Einblicke</string>
     <string name="avg_monthly_income">Ø monatliche Einnahmen</string>

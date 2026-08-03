@@ -51,7 +51,7 @@
     <string name="label_transfers_net">பரிமாற்றங்கள் (நிகரம்)</string>
     <string name="label_net">நிகரம்</string>
     <string name="section_expenses_by_category">வகை வாரியான செலவுகள்</string>
-    <string name="section_income_vs_expense">வருமானம் vs செலவு (6 மாதங்கள், புள்ளிக்கோடு = சராசரி)</string>
+    <string name="section_income_vs_expense">வருமானம் vs செலவு (புள்ளிக்கோடு = சராசரி)</string>
     <string name="section_savings_growth">சேமிப்பு வளர்ச்சி</string>
     <string name="section_insights">நுண்ணறிவுகள்</string>
     <string name="avg_monthly_income">சராசரி மாத வருமானம்</string>

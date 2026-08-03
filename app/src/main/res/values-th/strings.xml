@@ -51,7 +51,7 @@
     <string name="label_transfers_net">การโอน (สุทธิ)</string>
     <string name="label_net">สุทธิ</string>
     <string name="section_expenses_by_category">รายจ่ายตามหมวดหมู่</string>
-    <string name="section_income_vs_expense">รายรับ vs รายจ่าย (6 เดือน เส้นประ = ค่าเฉลี่ย)</string>
+    <string name="section_income_vs_expense">รายรับ vs รายจ่าย (เส้นประ = ค่าเฉลี่ย)</string>
     <string name="section_savings_growth">การเติบโตของเงินออม</string>
     <string name="section_insights">ข้อมูลเชิงลึก</string>
     <string name="avg_monthly_income">รายรับเฉลี่ยต่อเดือน</string>

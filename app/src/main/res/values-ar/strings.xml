@@ -51,7 +51,7 @@
     <string name="label_transfers_net">التحويلات (صافي)</string>
     <string name="label_net">صافي</string>
     <string name="section_expenses_by_category">المصروفات حسب الفئة</string>
-    <string name="section_income_vs_expense">الدخل مقابل المصروف (٦ أشهر، متقطع = المتوسط)</string>
+    <string name="section_income_vs_expense">الدخل مقابل المصروف (متقطع = المتوسط)</string>
     <string name="section_savings_growth">نمو المدخرات</string>
     <string name="section_insights">رؤى</string>
     <string name="avg_monthly_income">متوسط الدخل الشهري</string>

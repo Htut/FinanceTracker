@@ -51,7 +51,7 @@
     <string name="label_transfers_net">Transferencias (neto)</string>
     <string name="label_net">Neto</string>
     <string name="section_expenses_by_category">Gastos por categoría</string>
-    <string name="section_income_vs_expense">Ingresos vs gastos (6 meses, discontinua = media)</string>
+    <string name="section_income_vs_expense">Ingresos vs gastos (discontinua = media)</string>
     <string name="section_savings_growth">Crecimiento de ahorros</string>
     <string name="section_insights">Perspectivas</string>
     <string name="avg_monthly_income">Ingreso mensual medio</string>
