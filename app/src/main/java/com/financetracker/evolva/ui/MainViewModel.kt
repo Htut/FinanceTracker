@@ -1,6 +1,7 @@
 package com.financetracker.evolva.ui
 
 import android.content.Context
+import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -8,8 +9,12 @@ import androidx.lifecycle.viewmodel.CreationExtras
 import com.financetracker.evolva.R
 import com.financetracker.evolva.data.AppConstants
 import com.financetracker.evolva.data.backup.BackupManager
+import com.financetracker.evolva.data.backup.DriveBackupClient
+import com.financetracker.evolva.data.backup.DriveBackupMeta
 import com.financetracker.evolva.data.backup.toDomain
 import com.financetracker.evolva.data.locale.LocaleHelper
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.common.api.ApiException
 import com.financetracker.evolva.data.model.Account
 import com.financetracker.evolva.data.model.AppCurrency
 import com.financetracker.evolva.data.model.AppLanguage
@@ -139,6 +144,14 @@ class MainViewModel(
     private val _unlocked = MutableStateFlow(false)
     val unlocked: StateFlow<Boolean> = _unlocked
 
+    private val driveClient by lazy { DriveBackupClient(appContext) }
+    private val _driveAccountEmail = MutableStateFlow<String?>(null)
+    val driveAccountEmail: StateFlow<String?> = _driveAccountEmail
+    private val _driveBackupMeta = MutableStateFlow<DriveBackupMeta?>(null)
+    val driveBackupMeta: StateFlow<DriveBackupMeta?> = _driveBackupMeta
+    private val _driveBusy = MutableStateFlow(false)
+    val driveBusy: StateFlow<Boolean> = _driveBusy
+
     init {
         viewModelScope.launch {
             LocaleHelper.apply(settingsDataStore.language.first())
@@ -155,6 +168,7 @@ class MainViewModel(
             combine(transactions, autoLockRule) { txs, rule -> txs to rule }
                 .collect { (txs, rule) -> applyAutoLocks(txs, rule) }
         }
+        refreshDriveAccount()
     }
 
     fun unlockWithPassword(password: String, onResult: (Boolean) -> Unit) {
@@ -418,6 +432,7 @@ class MainViewModel(
                 profileSession.switchTo(profileId)
                 _undoAction.value = null
                 _dateFilter.value = DateFilter.All
+                refreshDriveAccount()
                 _infoMessage.value = str(R.string.msg_switched_profile, activeProfile.value.displayName)
             } catch (e: Exception) {
                 _infoMessage.value = e.message ?: str(R.string.msg_could_not_switch)
@@ -545,6 +560,89 @@ class MainViewModel(
             }
         }
         return ImportResult.Success(imported.size)
+    }
+
+    fun driveSignInIntent(): Intent = driveClient.signInIntent()
+
+    fun refreshDriveAccount() {
+        viewModelScope.launch {
+            val account = driveClient.currentAccount()
+            _driveAccountEmail.value = account?.email
+            if (account != null) {
+                _driveBackupMeta.value = driveClient.backupMeta(activeProfile.value.id)
+            } else {
+                _driveBackupMeta.value = null
+            }
+        }
+    }
+
+    fun handleDriveSignInResult(data: Intent?) {
+        viewModelScope.launch {
+            try {
+                val account = GoogleSignIn.getSignedInAccountFromIntent(data)
+                    .getResult(ApiException::class.java)
+                _driveAccountEmail.value = account.email
+                _driveBackupMeta.value = driveClient.backupMeta(activeProfile.value.id)
+                _infoMessage.value = str(R.string.drive_signed_in, account.email ?: "")
+            } catch (e: Exception) {
+                _infoMessage.value = e.message ?: str(R.string.drive_sign_in_failed)
+            }
+        }
+    }
+
+    fun signOutDrive() {
+        viewModelScope.launch {
+            driveClient.signOut()
+            _driveAccountEmail.value = null
+            _driveBackupMeta.value = null
+            _infoMessage.value = str(R.string.drive_signed_out)
+        }
+    }
+
+    fun backupToDrive() {
+        if (_driveBusy.value) return
+        viewModelScope.launch {
+            _driveBusy.value = true
+            val json = exportBackupJson()
+            val result = driveClient.uploadBackup(activeProfile.value.id, json)
+            _driveBusy.value = false
+            result
+                .onSuccess { meta ->
+                    _driveBackupMeta.value = meta
+                    _infoMessage.value = str(R.string.drive_backup_ok)
+                }
+                .onFailure { e ->
+                    _infoMessage.value = when (e.message) {
+                        "NOT_SIGNED_IN" -> str(R.string.drive_not_signed_in)
+                        else -> str(R.string.drive_backup_fail, e.message ?: "")
+                    }
+                }
+        }
+    }
+
+    fun restoreFromDrive() {
+        if (_driveBusy.value) return
+        viewModelScope.launch {
+            _driveBusy.value = true
+            val result = driveClient.downloadBackup(activeProfile.value.id)
+            _driveBusy.value = false
+            result
+                .onSuccess { json ->
+                    when (importBackup(json, replace = true)) {
+                        is ImportResult.Success -> Unit // importBackup sets status message
+                        ImportResult.Invalid ->
+                            _infoMessage.value = str(R.string.import_invalid)
+                    }
+                    _driveBackupMeta.value = driveClient.backupMeta(activeProfile.value.id)
+                }
+                .onFailure { e ->
+                    _infoMessage.value = when (e.message) {
+                        "NOT_SIGNED_IN" -> str(R.string.drive_not_signed_in)
+                        "NO_BACKUP" -> str(R.string.drive_no_backup)
+                        else -> str(R.string.drive_restore_fail, e.message ?: "")
+                    }
+                }
+        }
     }
 }
 

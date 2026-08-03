@@ -11,6 +11,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -118,9 +119,19 @@ fun AppNavGraph(viewModel: MainViewModel) {
             }
         },
         bottomBar = {
-            NavigationBar(containerColor = FinanceColors.Surface) {
+            NavigationBar(
+                containerColor = FinanceColors.Surface,
+                contentColor = FinanceColors.Text
+            ) {
                 val backStackEntry by navController.currentBackStackEntryAsState()
                 val currentDestination = backStackEntry?.destination
+                val itemColors = NavigationBarItemDefaults.colors(
+                    selectedIconColor = FinanceColors.Accent,
+                    selectedTextColor = FinanceColors.Accent,
+                    indicatorColor = FinanceColors.Accent.copy(alpha = 0.16f),
+                    unselectedIconColor = FinanceColors.TextSoft,
+                    unselectedTextColor = FinanceColors.TextSoft
+                )
                 tabs.forEach { tab ->
                     val selected = currentDestination?.hierarchy?.any { it.route == tab.route } == true
                     val label = stringResource(tab.labelRes)
@@ -133,16 +144,24 @@ fun AppNavGraph(viewModel: MainViewModel) {
                                 restoreState = true
                             }
                         },
-                        icon = { Icon(iconFor(tab), contentDescription = label) },
+                        icon = {
+                            Icon(
+                                imageVector = iconFor(tab),
+                                contentDescription = label,
+                                tint = if (selected) FinanceColors.Accent else FinanceColors.TextSoft
+                            )
+                        },
                         label = {
                             Text(
                                 text = label,
                                 fontSize = 11.sp,
                                 maxLines = 1,
                                 softWrap = false,
-                                overflow = TextOverflow.Ellipsis
+                                overflow = TextOverflow.Ellipsis,
+                                color = if (selected) FinanceColors.Accent else FinanceColors.TextSoft
                             )
                         },
+                        colors = itemColors,
                         alwaysShowLabel = true
                     )
                 }
