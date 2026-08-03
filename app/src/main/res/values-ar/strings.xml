@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">متتبع المالية</string>
-    <string name="developer_name">eVolva Intelligent Solution</string>
+    <string name="developer_name">Thein Htut, eVolva Intelligent Solution</string>
     <string name="version_label">الإصدار %1$s</string>
     <string name="budget_widget_description">الإنفاق الشهري والميزانية المتبقية</string>
     <string name="budget_widget_loading">متتبع المالية</string>

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">家計トラッカー</string>
-    <string name="developer_name">eVolva Intelligent Solution</string>
+    <string name="developer_name">Thein Htut, eVolva Intelligent Solution</string>
     <string name="version_label">バージョン %1$s</string>
     <string name="budget_widget_description">今月の支出と残り予算</string>
     <string name="budget_widget_loading">家計トラッカー</string>

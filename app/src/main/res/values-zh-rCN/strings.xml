@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">财务追踪</string>
-    <string name="developer_name">eVolva Intelligent Solution</string>
+    <string name="developer_name">Thein Htut, eVolva Intelligent Solution</string>
     <string name="version_label">版本 %1$s</string>
     <string name="budget_widget_description">本月支出与剩余预算</string>
     <string name="budget_widget_loading">财务追踪</string>

@@ -7,8 +7,6 @@ import java.time.LocalDate
  * Edit [APP_VERSION] here when releasing a new build label.
  */
 object AppConstants {
-    const val APP_NAME = "Finance Tracker"
-    const val DEVELOPER_NAME = "eVolva Intelligent Solution"
     const val APP_VERSION = "beta 1.0.0"
 
     /** Inclusive expiry date for this beta build (ISO-8601). */

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Control de Finanzas</string>
-    <string name="developer_name">eVolva Intelligent Solution</string>
+    <string name="developer_name">Thein Htut, eVolva Intelligent Solution</string>
     <string name="version_label">Versión %1$s</string>
     <string name="budget_widget_description">Gasto mensual y presupuesto restante</string>
     <string name="budget_widget_loading">Control de Finanzas</string>
@@ -391,7 +391,7 @@
     <string name="tpl_note_006">Phone bill</string>
     <string name="tpl_note_007">Groceries</string>
     <string name="tpl_note_008">Meal plan top-up</string>
-    <string name="tpl_note_009">Campus cafeteria</string>
+    <string name="tpl_note_009">Campus cafetería</string>
     <string name="tpl_note_010">Coffee run</string>
     <string name="tpl_note_011">Late-night snack</string>
     <string name="tpl_note_012">Bus pass top-up</string>

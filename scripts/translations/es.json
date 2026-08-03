@@ -1,6 +1,6 @@
 {
   "app_name": "Control de Finanzas",
-  "developer_name": "eVolva Intelligent Solution",
+  "developer_name": "Thein Htut, eVolva Intelligent Solution",
   "version_label": "Versión %1$s",
   "budget_widget_description": "Gasto mensual y presupuesto restante",
   "budget_widget_loading": "Control de Finanzas",
@@ -365,7 +365,7 @@
   "tpl_note_006": "Phone bill",
   "tpl_note_007": "Groceries",
   "tpl_note_008": "Meal plan top-up",
-  "tpl_note_009": "Campus cafeteria",
+  "tpl_note_009": "Campus cafetería",
   "tpl_note_010": "Coffee run",
   "tpl_note_011": "Late-night snack",
   "tpl_note_012": "Bus pass top-up",

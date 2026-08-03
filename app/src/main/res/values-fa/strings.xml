@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">ردیاب مالی</string>
-    <string name="developer_name">eVolva Intelligent Solution</string>
+    <string name="developer_name">Thein Htut, eVolva Intelligent Solution</string>
     <string name="version_label">نسخه %1$s</string>
     <string name="budget_widget_description">هزینه ماهانه و بودجه باقی‌مانده</string>
     <string name="budget_widget_loading">ردیاب مالی</string>

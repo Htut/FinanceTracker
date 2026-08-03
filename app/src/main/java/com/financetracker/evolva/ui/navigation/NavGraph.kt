@@ -2,10 +2,10 @@ package com.financetracker.evolva.ui.navigation
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.PieChart
-import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
@@ -64,7 +64,7 @@ private val tabs = listOf(
 
 private fun iconFor(tab: Tab) = when (tab) {
     Tab.Dashboard -> Icons.Filled.Home
-    Tab.Transactions -> Icons.Filled.ReceiptLong
+    Tab.Transactions -> Icons.AutoMirrored.Filled.ReceiptLong
     Tab.Budget -> Icons.Filled.PieChart
     Tab.Report -> Icons.AutoMirrored.Filled.ShowChart
     Tab.Settings -> Icons.Filled.Settings

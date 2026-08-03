@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">वित्त ट्रैकर</string>
-    <string name="developer_name">eVolva Intelligent Solution</string>
+    <string name="developer_name">Thein Htut, eVolva Intelligent Solution</string>
     <string name="version_label">संस्करण %1$s</string>
     <string name="budget_widget_description">मासिक खर्च और शेष बजट</string>
     <string name="budget_widget_loading">वित्त ट्रैकर</string>

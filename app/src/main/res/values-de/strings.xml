@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Finanztracker</string>
-    <string name="developer_name">eVolva Intelligent Solution</string>
+    <string name="developer_name">Thein Htut, eVolva Intelligent Solution</string>
     <string name="version_label">Version %1$s</string>
     <string name="budget_widget_description">Monatliche Ausgaben und verbleibendes Budget</string>
     <string name="budget_widget_loading">Finanztracker</string>
