@@ -8,6 +8,11 @@ live FX rates. Built with Kotlin, Jetpack Compose, Room, and DataStore.
 **Min SDK:** 26 (Android 8.0) · **Target / compile SDK:** 37  
 **Version:** see `versionName` in `app/build.gradle.kts` and `AppConstants.APP_VERSION`
 
+## Documentation
+
+- [User Manual](docs/USER_MANUAL.md) — how to use the app  
+- [Technical Implementation Manual](docs/TECHNICAL_IMPLEMENTATION_MANUAL.md) — architecture, build, extend
+
 ## Open / run
 
 1. Install **Android Studio** (current stable) or use the Gradle wrapper from the CLI.

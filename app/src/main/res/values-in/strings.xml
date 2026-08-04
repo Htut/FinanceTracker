@@ -357,7 +357,7 @@
     <string name="feature_widget_title">Widget layar utama</string>
     <string name="feature_widget_desc">Lihat pengeluaran bulan ini dan sisa anggaran sekilas.</string>
     <string name="feature_languages_title">Bahasa &amp; tema</string>
-    <string name="feature_languages_desc">Gunakan aplikasi dalam 20 bahasa dengan berbagai tema visual.</string>
+    <string name="feature_languages_desc">Gunakan aplikasi dalam 25 bahasa dengan beberapa tema visual.</string>
     <string name="label_developer">Pengembang</string>
     <string name="section_exit_app">Keluar Aplikasi</string>
     <string name="exit_app_help">Tutup Pelacak Keuangan sepenuhnya.</string>

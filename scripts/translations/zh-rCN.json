@@ -469,7 +469,7 @@
   "feature_widget_title": "主屏幕小组件",
   "feature_widget_desc": "一眼查看本月支出与剩余预算。",
   "feature_languages_title": "语言与主题",
-  "feature_languages_desc": "支持 20 种语言与多种视觉主题。",
+  "feature_languages_desc": "支持 25 种语言与多种视觉主题。",
   "beta_expires_notice": "此测试版将于 2027 年 7 月 31 日到期。到期后应用将无法打开。",
   "beta_expired_title": "测试版已到期",
   "beta_expired_message": "此 Finance Tracker 测试版已于 2027 年 7 月 31 日到期，无法继续使用。请在有新版本时安装。",

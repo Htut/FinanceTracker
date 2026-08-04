@@ -357,7 +357,7 @@
     <string name="feature_widget_title">主屏幕小组件</string>
     <string name="feature_widget_desc">一眼查看本月支出与剩余预算。</string>
     <string name="feature_languages_title">语言与主题</string>
-    <string name="feature_languages_desc">支持 20 种语言与多种视觉主题。</string>
+    <string name="feature_languages_desc">支持 25 种语言与多种视觉主题。</string>
     <string name="label_developer">开发者</string>
     <string name="section_exit_app">退出应用</string>
     <string name="exit_app_help">完全关闭财务追踪。</string>

@@ -357,7 +357,7 @@
     <string name="feature_widget_title">Widget da tela inicial</string>
     <string name="feature_widget_desc">Veja os gastos deste mês e o orçamento restante de relance.</string>
     <string name="feature_languages_title">Idiomas &amp; temas</string>
-    <string name="feature_languages_desc">Use o app em 20 idiomas com vários temas visuais.</string>
+    <string name="feature_languages_desc">Use o app em 25 idiomas com vários temas visuais.</string>
     <string name="label_developer">Desenvolvedor</string>
     <string name="section_exit_app">Sair do app</string>
     <string name="exit_app_help">Feche o Finance Tracker completamente.</string>
