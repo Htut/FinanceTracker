@@ -87,7 +87,7 @@ class MainViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val currency: StateFlow<AppCurrency> = profileSession.currency
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AppCurrency.MYR)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AppCurrency.USD)
 
     val language: StateFlow<AppLanguage> = settingsDataStore.language
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AppLanguage.ENGLISH)
