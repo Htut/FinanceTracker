@@ -778,11 +778,13 @@ private fun TemplateProfileCard(
 @Composable
 private fun BackupSettingsTab(viewModel: MainViewModel) {
     val context = LocalContext.current
+    val appContext = context.applicationContext
     var importResultMessage by remember { mutableStateOf<String?>(null) }
     var pendingReplace by remember { mutableStateOf(false) }
     var pendingCsv by remember { mutableStateOf(false) }
     var showDriveRestoreConfirm by remember { mutableStateOf(false) }
 
+    val driveEnabled = AppConstants.ENABLE_GOOGLE_DRIVE_BACKUP
     val driveEmail by viewModel.driveAccountEmail.collectAsState()
     val driveMeta by viewModel.driveBackupMeta.collectAsState()
     val driveBusy by viewModel.driveBusy.collectAsState()
@@ -818,14 +820,14 @@ private fun BackupSettingsTab(viewModel: MainViewModel) {
                 }
                 when (result) {
                     is ImportResult.Success -> importResultMessage =
-                        context.getString(R.string.import_success, result.transactionCount)
+                        appContext.getString(R.string.import_success, result.transactionCount)
                     ImportResult.Invalid -> importResultMessage =
-                        context.getString(
+                        appContext.getString(
                             if (pendingCsv) R.string.import_csv_invalid else R.string.import_invalid
                         )
                 }
             } else {
-                importResultMessage = context.getString(R.string.import_read_fail)
+                importResultMessage = appContext.getString(R.string.import_read_fail)
             }
         }
     }
@@ -842,68 +844,70 @@ private fun BackupSettingsTab(viewModel: MainViewModel) {
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        item {
-            SectionCard(title = stringResource(R.string.section_google_drive)) {
-                Text(
-                    stringResource(R.string.drive_help),
-                    fontSize = 12.5.sp,
-                    color = FinanceColors.TextSoft
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    stringResource(R.string.drive_setup_help),
-                    fontSize = 11.5.sp,
-                    color = FinanceColors.TextSoft
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                if (driveEmail == null) {
-                    Button(
-                        onClick = {
-                            viewModel.connectDrive { pendingIntent ->
-                                driveAuthLauncher.launch(
-                                    IntentSenderRequest.Builder(pendingIntent).build()
-                                )
-                            }
-                        },
-                        enabled = !driveBusy
-                    ) {
-                        Text(stringResource(R.string.drive_sign_in))
-                    }
-                } else {
+        if (driveEnabled) {
+            item {
+                SectionCard(title = stringResource(R.string.section_google_drive)) {
                     Text(
-                        stringResource(R.string.drive_account, driveEmail!!),
-                        fontSize = 13.sp,
-                        color = FinanceColors.Text
+                        stringResource(R.string.drive_help),
+                        fontSize = 12.5.sp,
+                        color = FinanceColors.TextSoft
                     )
                     Spacer(modifier = Modifier.height(6.dp))
-                    val metaText = driveMeta?.modifiedTime?.let {
-                        stringResource(R.string.drive_last_backup, it)
-                    } ?: stringResource(R.string.drive_no_cloud_backup_yet)
-                    Text(metaText, fontSize = 12.sp, color = FinanceColors.TextSoft)
-                    if (driveBusy) {
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            stringResource(R.string.drive_busy),
-                            fontSize = 12.sp,
-                            color = FinanceColors.TextSoft
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        stringResource(R.string.drive_setup_help),
+                        fontSize = 11.5.sp,
+                        color = FinanceColors.TextSoft
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    if (driveEmail == null) {
                         Button(
-                            onClick = viewModel::backupToDrive,
+                            onClick = {
+                                viewModel.connectDrive { pendingIntent ->
+                                    driveAuthLauncher.launch(
+                                        IntentSenderRequest.Builder(pendingIntent).build()
+                                    )
+                                }
+                            },
                             enabled = !driveBusy
-                        ) { Text(stringResource(R.string.drive_backup_now)) }
-                        OutlinedButton(
-                            onClick = { showDriveRestoreConfirm = true },
+                        ) {
+                            Text(stringResource(R.string.drive_sign_in))
+                        }
+                    } else {
+                        Text(
+                            stringResource(R.string.drive_account, driveEmail!!),
+                            fontSize = 13.sp,
+                            color = FinanceColors.Text
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        val metaText = driveMeta?.modifiedTime?.let {
+                            stringResource(R.string.drive_last_backup, it)
+                        } ?: stringResource(R.string.drive_no_cloud_backup_yet)
+                        Text(metaText, fontSize = 12.sp, color = FinanceColors.TextSoft)
+                        if (driveBusy) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                stringResource(R.string.drive_busy),
+                                fontSize = 12.sp,
+                                color = FinanceColors.TextSoft
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(
+                                onClick = viewModel::backupToDrive,
+                                enabled = !driveBusy
+                            ) { Text(stringResource(R.string.drive_backup_now)) }
+                            OutlinedButton(
+                                onClick = { showDriveRestoreConfirm = true },
+                                enabled = !driveBusy
+                            ) { Text(stringResource(R.string.drive_restore)) }
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        TextButton(
+                            onClick = viewModel::signOutDrive,
                             enabled = !driveBusy
-                        ) { Text(stringResource(R.string.drive_restore)) }
+                        ) { Text(stringResource(R.string.drive_sign_out)) }
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    TextButton(
-                        onClick = viewModel::signOutDrive,
-                        enabled = !driveBusy
-                    ) { Text(stringResource(R.string.drive_sign_out)) }
                 }
             }
         }
@@ -986,7 +990,7 @@ private fun BackupSettingsTab(viewModel: MainViewModel) {
         }
     }
 
-    if (showDriveRestoreConfirm) {
+    if (driveEnabled && showDriveRestoreConfirm) {
         AlertDialog(
             onDismissRequest = { showDriveRestoreConfirm = false },
             title = { Text(stringResource(R.string.drive_restore_confirm_title)) },

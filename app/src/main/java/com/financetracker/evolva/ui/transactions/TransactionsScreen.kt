@@ -81,12 +81,14 @@ fun TransactionsScreen(viewModel: MainViewModel) {
     val undoAction by viewModel.undoAction.collectAsState()
     val viewOnly by viewModel.viewOnlyMode.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val transactionDeletedMessage = stringResource(R.string.transaction_deleted)
+    val undoLabel = stringResource(R.string.action_undo)
 
     LaunchedEffect(undoAction) {
         if (undoAction is UndoAction.DeleteTransaction) {
             val result = snackbarHostState.showSnackbar(
-                message = context.getString(R.string.transaction_deleted),
-                actionLabel = context.getString(R.string.action_undo)
+                message = transactionDeletedMessage,
+                actionLabel = undoLabel
             )
             if (result == SnackbarResult.ActionPerformed) viewModel.undoLastAction()
             else viewModel.dismissUndo()

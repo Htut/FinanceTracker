@@ -168,7 +168,15 @@ class MainViewModel(
             combine(transactions, autoLockRule) { txs, rule -> txs to rule }
                 .collect { (txs, rule) -> applyAutoLocks(txs, rule) }
         }
-        refreshDriveAccount()
+        if (AppConstants.ENABLE_GOOGLE_DRIVE_BACKUP) {
+            refreshDriveAccount()
+        }
+    }
+
+    private fun refreshHomeWidget() {
+        viewModelScope.launch {
+            com.financetracker.evolva.ui.widget.refreshBudgetWidgets(appContext)
+        }
     }
 
     fun unlockWithPassword(password: String, onResult: (Boolean) -> Unit) {
@@ -339,6 +347,7 @@ class MainViewModel(
             } else {
                 repository.addTransaction(transaction)
             }
+            refreshHomeWidget()
         }
     }
 
@@ -348,6 +357,7 @@ class MainViewModel(
             val existing = transactions.value.find { it.id == transaction.id }
             if (existing?.locked == true) return@launch
             repository.updateTransaction(transaction)
+            refreshHomeWidget()
         }
     }
 
@@ -359,6 +369,7 @@ class MainViewModel(
             repository.deleteTransaction(id)
             context?.let { ReceiptStore.deleteIfOwned(it, existing.receiptUri) }
             _undoAction.value = UndoAction.DeleteTransaction(existing)
+            refreshHomeWidget()
         }
     }
 
@@ -369,6 +380,7 @@ class MainViewModel(
             repository.clearTransactions()
             _undoAction.value = UndoAction.ClearAll(snapshot)
             _infoMessage.value = null
+            refreshHomeWidget()
         }
     }
 
@@ -381,6 +393,7 @@ class MainViewModel(
                 null -> Unit
             }
             _undoAction.value = null
+            refreshHomeWidget()
         }
     }
 
@@ -402,6 +415,7 @@ class MainViewModel(
             val existing = budgets.value.find { it.category == category }
             if (existing?.locked == true) return@launch
             repository.setBudget(category, limit)
+            refreshHomeWidget()
         }
     }
 
@@ -412,6 +426,7 @@ class MainViewModel(
             if (existing.locked) return@launch
             repository.deleteBudget(category)
             _undoAction.value = UndoAction.DeleteBudget(existing)
+            refreshHomeWidget()
         }
     }
 
@@ -432,7 +447,10 @@ class MainViewModel(
                 profileSession.switchTo(profileId)
                 _undoAction.value = null
                 _dateFilter.value = DateFilter.All
-                refreshDriveAccount()
+                if (AppConstants.ENABLE_GOOGLE_DRIVE_BACKUP) {
+                    refreshDriveAccount()
+                }
+                refreshHomeWidget()
                 _infoMessage.value = str(R.string.msg_switched_profile, activeProfile.value.displayName)
             } catch (e: Exception) {
                 _infoMessage.value = e.message ?: str(R.string.msg_could_not_switch)
@@ -449,6 +467,7 @@ class MainViewModel(
                 _undoAction.value = null
                 _dateFilter.value = DateFilter.All
                 _infoMessage.value = str(R.string.msg_profile_ready, profile.displayName)
+                refreshHomeWidget()
             } catch (e: Exception) {
                 _infoMessage.value = e.message ?: str(R.string.msg_could_not_setup)
             }
@@ -532,6 +551,7 @@ class MainViewModel(
                 _infoMessage.value =
                     str(R.string.msg_backup_merged, importedTransactions.size)
             }
+            refreshHomeWidget()
         }
         return ImportResult.Success(importedTransactions.size)
     }
@@ -558,11 +578,13 @@ class MainViewModel(
                     Categories.normalizeCustom(customExpenseCategories.value + customFromCsv)
                 )
             }
+            refreshHomeWidget()
         }
         return ImportResult.Success(imported.size)
     }
 
     fun connectDrive(onNeedsUi: (PendingIntent) -> Unit) {
+        if (!AppConstants.ENABLE_GOOGLE_DRIVE_BACKUP) return
         if (_driveBusy.value) return
         viewModelScope.launch {
             _driveBusy.value = true
@@ -584,6 +606,7 @@ class MainViewModel(
     }
 
     fun handleDriveAuthorizationResult(data: Intent?) {
+        if (!AppConstants.ENABLE_GOOGLE_DRIVE_BACKUP) return
         viewModelScope.launch {
             _driveBusy.value = true
             when (val outcome = driveClient.completeAuthorization(data)) {
@@ -607,6 +630,7 @@ class MainViewModel(
     }
 
     fun refreshDriveAccount() {
+        if (!AppConstants.ENABLE_GOOGLE_DRIVE_BACKUP) return
         viewModelScope.launch {
             val email = driveClient.currentSessionEmail()
             if (email == null && driveClient.silentAccessToken() == null) {
@@ -620,6 +644,7 @@ class MainViewModel(
     }
 
     fun signOutDrive() {
+        if (!AppConstants.ENABLE_GOOGLE_DRIVE_BACKUP) return
         viewModelScope.launch {
             driveClient.signOut()
             _driveAccountEmail.value = null
@@ -629,6 +654,7 @@ class MainViewModel(
     }
 
     fun backupToDrive() {
+        if (!AppConstants.ENABLE_GOOGLE_DRIVE_BACKUP) return
         if (_driveBusy.value) return
         viewModelScope.launch {
             _driveBusy.value = true
@@ -652,6 +678,7 @@ class MainViewModel(
     }
 
     fun restoreFromDrive() {
+        if (!AppConstants.ENABLE_GOOGLE_DRIVE_BACKUP) return
         if (_driveBusy.value) return
         viewModelScope.launch {
             _driveBusy.value = true

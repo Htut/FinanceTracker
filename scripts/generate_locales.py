@@ -39,6 +39,12 @@ LOCALES = [
     "hi",
 ]
 
+# Android resource folder qualifiers. Indonesian uses "in" (legacy Java locale),
+# while translation JSON keys stay as "id".
+RESOURCE_FOLDER = {
+    "id": "in",
+}
+
 STRING_RE = re.compile(
     r'<string\s+name="([^"]+)">(.*?)</string>',
     re.DOTALL,
@@ -146,7 +152,8 @@ def write_locale_xml(
         lines.append(f'    <string name="{key}">{text}</string>')
     lines.append("</resources>")
     lines.append("")
-    out_dir = ROOT / f"values-{folder}"
+    res_folder = RESOURCE_FOLDER.get(folder, folder)
+    out_dir = ROOT / f"values-{res_folder}"
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / "strings.xml"
     out_path.write_text("\n".join(lines), encoding="utf-8")
@@ -179,8 +186,9 @@ def main() -> int:
             if must not in translations:
                 raise SystemExit(f"{folder}: missing required key {must}")
         path = write_locale_xml(folder, ordered_keys, english, translations)
-        written.append((folder, path))
-        print(f"wrote values-{folder}/strings.xml ({len(ordered_keys)} keys)")
+        res_folder = RESOURCE_FOLDER.get(folder, folder)
+        written.append((res_folder, path))
+        print(f"wrote values-{res_folder}/strings.xml ({len(ordered_keys)} keys)")
 
     print(f"done: {len(written)} locales, {len(ordered_keys)} keys each")
     return 0

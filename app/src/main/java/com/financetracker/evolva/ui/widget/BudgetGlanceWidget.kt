@@ -49,7 +49,7 @@ class BudgetGlanceWidget : GlanceAppWidget() {
                     .background(
                         ColorProvider(
                             day = Color(0xFFF8FAFC),
-                            night = Color(0xFFF8FAFC)
+                            night = Color(0xFF0F172A)
                         )
                     )
                     .padding(16.dp)
@@ -59,7 +59,7 @@ class BudgetGlanceWidget : GlanceAppWidget() {
                     style = TextStyle(
                         color = ColorProvider(
                             day = Color(0xFF0F172A),
-                            night = Color(0xFF0F172A)
+                            night = Color(0xFFF8FAFC)
                         ),
                         fontWeight = FontWeight.Bold
                     )
@@ -70,7 +70,7 @@ class BudgetGlanceWidget : GlanceAppWidget() {
                     style = TextStyle(
                         color = ColorProvider(
                             day = Color(0xFF64748B),
-                            night = Color(0xFF64748B)
+                            night = Color(0xFF94A3B8)
                         )
                     )
                 )
@@ -79,7 +79,7 @@ class BudgetGlanceWidget : GlanceAppWidget() {
                     style = TextStyle(
                         color = ColorProvider(
                             day = Color(0xFFDC2626),
-                            night = Color(0xFFDC2626)
+                            night = Color(0xFFF87171)
                         ),
                         fontWeight = FontWeight.Bold
                     )
@@ -90,7 +90,7 @@ class BudgetGlanceWidget : GlanceAppWidget() {
                     style = TextStyle(
                         color = ColorProvider(
                             day = Color(0xFF64748B),
-                            night = Color(0xFF64748B)
+                            night = Color(0xFF94A3B8)
                         )
                     )
                 )
@@ -99,7 +99,7 @@ class BudgetGlanceWidget : GlanceAppWidget() {
                     style = TextStyle(
                         color = ColorProvider(
                             day = Color(0xFF16A34A),
-                            night = Color(0xFF16A34A)
+                            night = Color(0xFF4ADE80)
                         ),
                         fontWeight = FontWeight.Bold
                     )
