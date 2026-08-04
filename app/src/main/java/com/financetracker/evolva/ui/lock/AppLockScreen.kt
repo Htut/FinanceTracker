@@ -46,6 +46,7 @@ fun AppLockScreen(
     val fragmentActivity = context as? FragmentActivity
     var password by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
+    val incorrectPassword = stringResource(R.string.incorrect_password)
 
     val deviceAuthLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -99,7 +100,7 @@ fun AppLockScreen(
         Button(
             onClick = {
                 onUnlockWithPassword(password) { ok ->
-                    if (ok) onUnlocked() else error = context.getString(R.string.incorrect_password)
+                    if (ok) onUnlocked() else error = incorrectPassword
                 }
             },
             enabled = password.isNotBlank(),

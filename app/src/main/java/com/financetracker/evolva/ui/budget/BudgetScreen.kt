@@ -89,12 +89,14 @@ fun BudgetScreen(viewModel: MainViewModel) {
     val undoAction by viewModel.undoAction.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     var pendingDelete by remember { mutableStateOf<Budget?>(null) }
+    val budgetDeletedMessage = stringResource(R.string.budget_deleted)
+    val undoLabel = stringResource(R.string.action_undo)
 
     LaunchedEffect(undoAction) {
         if (undoAction is UndoAction.DeleteBudget) {
             val result = snackbarHostState.showSnackbar(
-                message = context.getString(R.string.budget_deleted),
-                actionLabel = context.getString(R.string.action_undo)
+                message = budgetDeletedMessage,
+                actionLabel = undoLabel
             )
             if (result == SnackbarResult.ActionPerformed) viewModel.undoLastAction()
             else viewModel.dismissUndo()
