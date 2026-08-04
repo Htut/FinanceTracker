@@ -357,7 +357,7 @@
     <string name="feature_widget_title">Home screen widget</string>
     <string name="feature_widget_desc">See this month\'s spend and budget remaining at a glance.</string>
     <string name="feature_languages_title">Languages &amp; themes</string>
-    <string name="feature_languages_desc">Use the app in 20 languages with multiple visual themes.</string>
+    <string name="feature_languages_desc">여러 시각 테마와 함께 25개 언어로 앱을 사용하세요.</string>
     <string name="label_developer">개발자</string>
     <string name="section_exit_app">앱 종료</string>
     <string name="exit_app_help">가계부 트래커를 완전히 닫습니다.</string>

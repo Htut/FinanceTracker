@@ -357,7 +357,7 @@
     <string name="feature_widget_title">Home screen widget</string>
     <string name="feature_widget_desc">See this month\'s spend and budget remaining at a glance.</string>
     <string name="feature_languages_title">Languages &amp; themes</string>
-    <string name="feature_languages_desc">Use the app in 20 languages with multiple visual themes.</string>
+    <string name="feature_languages_desc">複数のビジュアルテーマで 25 言語に対応しています。</string>
     <string name="label_developer">開発者</string>
     <string name="section_exit_app">アプリを終了</string>
     <string name="exit_app_help">家計トラッカーを完全に閉じます。</string>
