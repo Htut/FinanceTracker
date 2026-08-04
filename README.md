@@ -90,7 +90,8 @@ python3 scripts/generate_locales.py
 Missing translation keys fall back to English. Indonesian resources use the
 Android folder `values-in` (legacy `in` qualifier); `locales_config.xml` still
 lists language tag `id`. Supported in-app languages are listed in
-`AppLanguage` / `locales_config.xml` (including Bengali, Zulu, Shan, and Dutch).
+`AppLanguage` / `locales_config.xml` (including Bengali, Zulu, Shan, Dutch,
+and Portuguese).
 
 ## Beta expiry
 

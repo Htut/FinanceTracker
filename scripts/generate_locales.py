@@ -41,6 +41,7 @@ LOCALES = [
     "zu",
     "shn",
     "nl",
+    "pt",
 ]
 
 # Android resource folder qualifiers. Indonesian uses "in" (legacy Java locale),
