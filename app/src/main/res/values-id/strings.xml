@@ -51,7 +51,7 @@
     <string name="label_transfers_net">Transfer (bersih)</string>
     <string name="label_net">Bersih</string>
     <string name="section_expenses_by_category">Pengeluaran per Kategori</string>
-    <string name="section_income_vs_expense">Pemasukan vs Pengeluaran (6 bln, putus-putus = rata-rata)</string>
+    <string name="section_income_vs_expense">Pemasukan vs Pengeluaran (putus-putus = rata-rata)</string>
     <string name="section_savings_growth">Pertumbuhan Tabungan</string>
     <string name="section_insights">Wawasan</string>
     <string name="avg_monthly_income">Rata-rata Pemasukan Bulanan</string>

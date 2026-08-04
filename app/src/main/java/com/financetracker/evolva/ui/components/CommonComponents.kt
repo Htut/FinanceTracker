@@ -19,6 +19,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -161,6 +163,7 @@ fun TransactionRow(
     formattedAmount: String,
     onClick: () -> Unit,
     onDelete: () -> Unit,
+    onToggleLock: () -> Unit,
     modifier: Modifier = Modifier,
     readOnly: Boolean = false
 ) {
@@ -176,22 +179,24 @@ fun TransactionRow(
         val arrow = if (transaction.direction == TransferDirection.OUT) "↗" else "↙"
         "$arrow $categoryDisplay"
     } else categoryDisplay
+    val rowLocked = transaction.locked
+    val canEdit = !readOnly && !rowLocked
 
     Row(
         modifier = modifier
             .fillMaxWidth()
             .then(
-                if (readOnly) Modifier
-                else Modifier.clickable(onClick = onClick)
+                if (canEdit) Modifier.clickable(onClick = onClick)
+                else Modifier
             )
             .padding(vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(modifier.weight(1f)) {
+        Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(transaction.formatRecordedAt(), fontSize = 12.sp, color = FinanceColors.TextSoft)
                 if (transaction.recurringId != null) {
-                    Spacer(modifier.width(4.dp))
+                    Spacer(Modifier.width(4.dp))
                     Icon(
                         Icons.Filled.Repeat,
                         contentDescription = stringResource(R.string.cd_recurring),
@@ -200,7 +205,7 @@ fun TransactionRow(
                     )
                 }
             }
-            Spacer(modifier.height(3.dp))
+            Spacer(Modifier.height(3.dp))
             TypeTag(transaction.type)
             Spacer(modifier.height(3.dp))
             Text(categoryLabel, fontSize = 13.5.sp, color = FinanceColors.Text)
@@ -215,22 +220,35 @@ fun TransactionRow(
             color = color
         )
         if (!readOnly) {
-            IconButton(onClick = onClick) {
+            IconButton(onClick = onToggleLock) {
                 Icon(
-                    Icons.Filled.Edit,
-                    contentDescription = stringResource(R.string.action_edit),
-                    tint = FinanceColors.TextSoft,
+                    if (rowLocked) Icons.Filled.Lock else Icons.Filled.LockOpen,
+                    contentDescription = stringResource(
+                        if (rowLocked) R.string.cd_unlock_transaction else R.string.cd_lock_transaction
+                    ),
+                    tint = if (rowLocked) FinanceColors.Text else FinanceColors.TextSoft,
                     modifier = Modifier.size(18.dp)
                 )
             }
-            IconButton(onClick = onDelete) {
-                Icon(
-                    Icons.Filled.Delete,
-                    contentDescription = stringResource(R.string.action_delete),
-                    tint = FinanceColors.Expense,
-                    modifier = Modifier.size(18.dp)
-                )
+            if (!rowLocked) {
+                IconButton(onClick = onClick) {
+                    Icon(
+                        Icons.Filled.Edit,
+                        contentDescription = stringResource(R.string.action_edit),
+                        tint = FinanceColors.TextSoft,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+                IconButton(onClick = onDelete) {
+                    Icon(
+                        Icons.Filled.Delete,
+                        contentDescription = stringResource(R.string.action_delete),
+                        tint = FinanceColors.Expense,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
         }
     }
 }
+

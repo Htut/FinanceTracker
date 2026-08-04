@@ -51,7 +51,7 @@
     <string name="label_transfers_net">လွှဲပြောင်းများ (အသားတင်)</string>
     <string name="label_net">အသားတင်</string>
     <string name="section_expenses_by_category">အမျိုးအစားအလိုက် အသုံးစရိတ်</string>
-    <string name="section_income_vs_expense">ဝင်ငွေ vs အသုံးစရိတ် (၆ လ၊ မျဉ်းစက် = ပျမ်းမျှ)</string>
+    <string name="section_income_vs_expense">ဝင်ငွေ vs အသုံးစရိတ် (မျဉ်းစက် = ပျမ်းမျှ)</string>
     <string name="section_savings_growth">စုငွေ တိုးတက်မှု</string>
     <string name="section_insights">ထိုးထွင်းချက်များ</string>
     <string name="avg_monthly_income">ပျမ်းမျှ လစဉ်ဝင်ငွေ</string>

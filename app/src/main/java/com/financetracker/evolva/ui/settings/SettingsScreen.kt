@@ -2,6 +2,7 @@ package com.financetracker.evolva.ui.settings
 
 import android.app.Activity
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -64,6 +65,7 @@ import com.financetracker.evolva.data.AppConstants
 import com.financetracker.evolva.data.backup.BackupManager
 import com.financetracker.evolva.data.model.AppCurrency
 import com.financetracker.evolva.data.model.AppLanguage
+import com.financetracker.evolva.data.model.AutoLockRule
 import com.financetracker.evolva.data.model.RecurringRule
 import com.financetracker.evolva.data.model.TransactionType
 import com.financetracker.evolva.data.model.TransferDirection
@@ -73,6 +75,7 @@ import com.financetracker.evolva.data.prefs.PasswordChangeResult
 import com.financetracker.evolva.data.profile.ProfileIds
 import com.financetracker.evolva.data.profile.ProfileKind
 import com.financetracker.evolva.data.profile.TrackerProfile
+import com.financetracker.evolva.data.security.BiometricAuth
 import com.financetracker.evolva.data.security.DeviceCredentialAuth
 import com.financetracker.evolva.data.templates.AppTemplate
 import com.financetracker.evolva.data.templates.TEMPLATES
@@ -179,6 +182,15 @@ private fun GeneralSettingsTab(viewModel: MainViewModel) {
         }
         item {
             SectionCard(title = stringResource(R.string.section_language)) {
+                Text(
+                    stringResource(
+                        R.string.language_currency_preset_help,
+                        "${language.suggestedCurrency.symbol} ${language.suggestedCurrency.code}"
+                    ),
+                    fontSize = 12.5.sp,
+                    color = FinanceColors.TextSoft
+                )
+                Spacer(modifier = Modifier.height(10.dp))
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(AppLanguage.entries.toList(), key = { it.tag }) { lang ->
                         FilterChip(
@@ -768,6 +780,12 @@ private fun BackupSettingsTab(viewModel: MainViewModel) {
     val context = LocalContext.current
     var importResultMessage by remember { mutableStateOf<String?>(null) }
     var pendingReplace by remember { mutableStateOf(false) }
+    var pendingCsv by remember { mutableStateOf(false) }
+    var showDriveRestoreConfirm by remember { mutableStateOf(false) }
+
+    val driveEmail by viewModel.driveAccountEmail.collectAsState()
+    val driveMeta by viewModel.driveBackupMeta.collectAsState()
+    val driveBusy by viewModel.driveBusy.collectAsState()
 
     val createJsonLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json")
@@ -787,21 +805,35 @@ private fun BackupSettingsTab(viewModel: MainViewModel) {
             }
         }
     }
-    val openJsonLauncher = rememberLauncherForActivityResult(
+    val openImportLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { uri ->
         uri?.let {
             val text = context.contentResolver.openInputStream(it)?.bufferedReader()?.use { r -> r.readText() }
             if (text != null) {
-                when (val result = viewModel.importBackup(text, pendingReplace)) {
+                val result = if (pendingCsv) {
+                    viewModel.importCsv(text, pendingReplace)
+                } else {
+                    viewModel.importBackup(text, pendingReplace)
+                }
+                when (result) {
                     is ImportResult.Success -> importResultMessage =
                         context.getString(R.string.import_success, result.transactionCount)
                     ImportResult.Invalid -> importResultMessage =
-                        context.getString(R.string.import_invalid)
+                        context.getString(
+                            if (pendingCsv) R.string.import_csv_invalid else R.string.import_invalid
+                        )
                 }
             } else {
                 importResultMessage = context.getString(R.string.import_read_fail)
             }
+        }
+    }
+    val driveAuthLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            viewModel.handleDriveAuthorizationResult(result.data)
         }
     }
 
@@ -811,17 +843,83 @@ private fun BackupSettingsTab(viewModel: MainViewModel) {
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
+            SectionCard(title = stringResource(R.string.section_google_drive)) {
+                Text(
+                    stringResource(R.string.drive_help),
+                    fontSize = 12.5.sp,
+                    color = FinanceColors.TextSoft
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    stringResource(R.string.drive_setup_help),
+                    fontSize = 11.5.sp,
+                    color = FinanceColors.TextSoft
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                if (driveEmail == null) {
+                    Button(
+                        onClick = {
+                            viewModel.connectDrive { pendingIntent ->
+                                driveAuthLauncher.launch(
+                                    IntentSenderRequest.Builder(pendingIntent).build()
+                                )
+                            }
+                        },
+                        enabled = !driveBusy
+                    ) {
+                        Text(stringResource(R.string.drive_sign_in))
+                    }
+                } else {
+                    Text(
+                        stringResource(R.string.drive_account, driveEmail!!),
+                        fontSize = 13.sp,
+                        color = FinanceColors.Text
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    val metaText = driveMeta?.modifiedTime?.let {
+                        stringResource(R.string.drive_last_backup, it)
+                    } ?: stringResource(R.string.drive_no_cloud_backup_yet)
+                    Text(metaText, fontSize = 12.sp, color = FinanceColors.TextSoft)
+                    if (driveBusy) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            stringResource(R.string.drive_busy),
+                            fontSize = 12.sp,
+                            color = FinanceColors.TextSoft
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            onClick = viewModel::backupToDrive,
+                            enabled = !driveBusy
+                        ) { Text(stringResource(R.string.drive_backup_now)) }
+                        OutlinedButton(
+                            onClick = { showDriveRestoreConfirm = true },
+                            enabled = !driveBusy
+                        ) { Text(stringResource(R.string.drive_restore)) }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    TextButton(
+                        onClick = viewModel::signOutDrive,
+                        enabled = !driveBusy
+                    ) { Text(stringResource(R.string.drive_sign_out)) }
+                }
+            }
+        }
+
+        item {
             SectionCard(title = stringResource(R.string.section_backup)) {
                 Text(
                     stringResource(R.string.backup_help),
                     fontSize = 12.5.sp, color = FinanceColors.TextSoft
                 )
-                Spacer(Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     stringResource(R.string.backup_help_profile),
                     fontSize = 12.5.sp, color = FinanceColors.TextSoft
                 )
-                Spacer(Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(12.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = { createJsonLauncher.launch(BackupManager.backupFileName()) }) {
                         Text(stringResource(R.string.export_json))
@@ -830,23 +928,83 @@ private fun BackupSettingsTab(viewModel: MainViewModel) {
                         Text(stringResource(R.string.export_csv))
                     }
                 }
-                Spacer(Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    stringResource(R.string.import_json_label),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = FinanceColors.Text
+                )
+                Spacer(modifier = Modifier.height(6.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = {
+                        pendingCsv = false
                         pendingReplace = false
-                        openJsonLauncher.launch(arrayOf("application/json", "text/plain", "*/*"))
+                        openImportLauncher.launch(arrayOf("application/json", "text/plain", "*/*"))
                     }) { Text(stringResource(R.string.import_merge)) }
                     OutlinedButton(onClick = {
+                        pendingCsv = false
                         pendingReplace = true
-                        openJsonLauncher.launch(arrayOf("application/json", "text/plain", "*/*"))
+                        openImportLauncher.launch(arrayOf("application/json", "text/plain", "*/*"))
                     }) { Text(stringResource(R.string.import_replace)) }
                 }
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    stringResource(R.string.import_csv_label),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = FinanceColors.Text
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    stringResource(R.string.import_csv_help),
+                    fontSize = 12.5.sp,
+                    color = FinanceColors.TextSoft
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = {
+                        pendingCsv = true
+                        pendingReplace = false
+                        openImportLauncher.launch(
+                            arrayOf("text/csv", "text/comma-separated-values", "text/plain", "*/*")
+                        )
+                    }) { Text(stringResource(R.string.import_csv_merge)) }
+                    OutlinedButton(onClick = {
+                        pendingCsv = true
+                        pendingReplace = true
+                        openImportLauncher.launch(
+                            arrayOf("text/csv", "text/comma-separated-values", "text/plain", "*/*")
+                        )
+                    }) { Text(stringResource(R.string.import_csv_replace)) }
+                }
                 importResultMessage?.let {
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(it, fontSize = 12.5.sp, color = FinanceColors.Savings)
                 }
             }
         }
+    }
+
+    if (showDriveRestoreConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDriveRestoreConfirm = false },
+            title = { Text(stringResource(R.string.drive_restore_confirm_title)) },
+            text = { Text(stringResource(R.string.drive_restore_confirm_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDriveRestoreConfirm = false
+                        viewModel.restoreFromDrive()
+                    }
+                ) { Text(stringResource(R.string.drive_restore)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDriveRestoreConfirm = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            }
+        )
     }
 }
 
@@ -854,6 +1012,7 @@ private fun BackupSettingsTab(viewModel: MainViewModel) {
 private fun SecuritySettingsTab(viewModel: MainViewModel) {
     val hasPassword by viewModel.hasAppPassword.collectAsState()
     val viewOnly by viewModel.viewOnlyMode.collectAsState()
+    val autoLockRule by viewModel.autoLockRule.collectAsState()
     val context = LocalContext.current
     val activity = context as Activity
     val scope = rememberCoroutineScope()
@@ -946,6 +1105,88 @@ private fun SecuritySettingsTab(viewModel: MainViewModel) {
                         checked = viewOnly,
                         onCheckedChange = viewModel::setViewOnlyMode
                     )
+                }
+            }
+        }
+
+        item {
+            val biometricEnabled by viewModel.biometricUnlockEnabled.collectAsState()
+            val biometricAvailable = remember(context) {
+                BiometricAuth.canAuthenticate(context)
+            }
+            SectionCard(title = stringResource(R.string.section_biometric_unlock)) {
+                Text(
+                    stringResource(R.string.biometric_unlock_help),
+                    fontSize = 12.5.sp,
+                    color = FinanceColors.TextSoft
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        stringResource(R.string.biometric_unlock_toggle),
+                        modifier = Modifier.weight(1f),
+                        fontSize = 14.sp,
+                        color = FinanceColors.Text
+                    )
+                    Switch(
+                        checked = biometricEnabled && hasPassword,
+                        enabled = hasPassword && biometricAvailable,
+                        onCheckedChange = viewModel::setBiometricUnlockEnabled
+                    )
+                }
+                if (!hasPassword) {
+                    Text(
+                        stringResource(R.string.biometric_requires_password),
+                        fontSize = 11.5.sp,
+                        color = FinanceColors.TextSoft,
+                        modifier = Modifier.padding(top = 6.dp)
+                    )
+                } else if (!biometricAvailable) {
+                    Text(
+                        stringResource(R.string.biometric_unavailable),
+                        fontSize = 11.5.sp,
+                        color = FinanceColors.TextSoft,
+                        modifier = Modifier.padding(top = 6.dp)
+                    )
+                }
+            }
+        }
+
+        item {
+            SectionCard(title = stringResource(R.string.section_auto_lock)) {
+                Text(
+                    stringResource(R.string.auto_lock_help),
+                    fontSize = 12.5.sp,
+                    color = FinanceColors.TextSoft
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(
+                        listOf(
+                            AutoLockRule.OFF to R.string.auto_lock_off,
+                            AutoLockRule.AFTER_7_DAYS to R.string.auto_lock_7_days,
+                            AutoLockRule.AFTER_30_DAYS to R.string.auto_lock_30_days,
+                            AutoLockRule.AFTER_90_DAYS to R.string.auto_lock_90_days,
+                            AutoLockRule.PREVIOUS_MONTHS to R.string.auto_lock_prev_months
+                        ),
+                        key = { it.first.days }
+                    ) { (rule, labelRes) ->
+                        FilterChip(
+                            selected = autoLockRule == rule,
+                            onClick = { viewModel.setAutoLockRule(rule) },
+                            label = {
+                                Text(
+                                    text = stringResource(labelRes),
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
+                            }
+                        )
+                    }
                 }
             }
         }

@@ -51,7 +51,7 @@
     <string name="label_transfers_net">انتقال‌ها (خالص)</string>
     <string name="label_net">خالص</string>
     <string name="section_expenses_by_category">هزینه‌ها بر اساس دسته</string>
-    <string name="section_income_vs_expense">درآمد در برابر هزینه (۶ ماه، خط‌چین = میانگین)</string>
+    <string name="section_income_vs_expense">درآمد در برابر هزینه (خط‌چین = میانگین)</string>
     <string name="section_savings_growth">رشد پس‌انداز</string>
     <string name="section_insights">بینش‌ها</string>
     <string name="avg_monthly_income">میانگین درآمد ماهانه</string>

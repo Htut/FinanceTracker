@@ -5,6 +5,7 @@ import com.financetracker.evolva.R
 import com.financetracker.evolva.data.AppConstants
 import com.financetracker.evolva.data.db.FinanceDatabase
 import com.financetracker.evolva.data.model.AppCurrency
+import com.financetracker.evolva.data.model.AutoLockRule
 import com.financetracker.evolva.data.prefs.SettingsDataStore
 import com.financetracker.evolva.data.repository.FinanceRepository
 import com.financetracker.evolva.data.templates.AppTemplate
@@ -71,6 +72,10 @@ class ActiveProfileSession(
     }
     val budgetAlertsEnabled =
         _binding.flatMapLatest { it?.settings?.budgetAlertsEnabled ?: flowOf(false) }
+    val autoLockRule =
+        _binding.flatMapLatest {
+            it?.settings?.autoLockRule ?: flowOf(AutoLockRule.OFF)
+        }
 
     fun requireRepository(): FinanceRepository =
         _binding.value?.repository ?: error("Profile session not initialized")

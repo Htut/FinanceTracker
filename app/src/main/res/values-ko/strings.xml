@@ -51,7 +51,7 @@
     <string name="label_transfers_net">이체(순액)</string>
     <string name="label_net">순액</string>
     <string name="section_expenses_by_category">카테고리별 지출</string>
-    <string name="section_income_vs_expense">수입 vs 지출(6개월, 점선 = 평균)</string>
+    <string name="section_income_vs_expense">수입 vs 지출(점선 = 평균)</string>
     <string name="section_savings_growth">저축 성장</string>
     <string name="section_insights">인사이트</string>
     <string name="avg_monthly_income">월평균 수입</string>

@@ -55,10 +55,29 @@ class FinanceRepository(private val dao: FinanceDao) {
     suspend fun deleteTransaction(id: String) = dao.deleteTransactionById(id)
 
     suspend fun setBudget(category: String, limit: Double) {
-        if (limit <= 0) dao.deleteBudget(category) else dao.upsertBudget(BudgetEntity(category, limit))
+        if (limit <= 0) {
+            dao.deleteBudget(category)
+        } else {
+            val existing = budgets.first().find { it.category == category }
+            dao.upsertBudget(
+                BudgetEntity(
+                    category = category,
+                    limitAmount = limit,
+                    locked = existing?.locked ?: false
+                )
+            )
+        }
     }
 
+    suspend fun upsertBudget(budget: Budget) = dao.upsertBudget(budget.toEntity())
+
     suspend fun deleteBudget(category: String) = dao.deleteBudget(category)
+
+    suspend fun setBudgetLocked(category: String, locked: Boolean) {
+        val existing = budgets.first().find { it.category == category } ?: return
+        if (existing.locked == locked) return
+        dao.upsertBudget(existing.copy(locked = locked).toEntity())
+    }
 
     suspend fun updateRecurringRule(rule: RecurringRule) =
         dao.updateRecurringRule(rule.toEntity())
@@ -67,7 +86,9 @@ class FinanceRepository(private val dao: FinanceDao) {
     suspend fun setBudgetsIfAbsent(newBudgets: Map<String, Double>) {
         val existingCats = budgets.first().map { it.category }.toSet()
         newBudgets.forEach { (cat, limit) ->
-            if (cat !in existingCats) dao.upsertBudget(BudgetEntity(cat, limit))
+            if (cat !in existingCats) {
+                dao.upsertBudget(BudgetEntity(category = cat, limitAmount = limit, locked = false))
+            }
         }
     }
 
@@ -122,6 +143,11 @@ class FinanceRepository(private val dao: FinanceDao) {
         val existingCats = this.budgets.first().map { it.category }.toSet()
         budgets.forEach { if (it.category !in existingCats) dao.upsertBudget(it.toEntity()) }
         dao.insertRecurringRules(rules.map { it.toEntity() })
+    }
+
+    suspend fun replaceTransactions(transactions: List<Transaction>) {
+        dao.deleteAllTransactions()
+        dao.insertTransactions(transactions.map { it.toEntity() })
     }
 
     suspend fun clearTransactions() = dao.deleteAllTransactions()

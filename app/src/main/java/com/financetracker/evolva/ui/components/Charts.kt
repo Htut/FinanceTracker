@@ -251,3 +251,155 @@ fun LineChart(
         }
     }
 }
+
+/** Horizontal bars for category breakdown (alternative to [DonutChart]). */
+@Composable
+fun CategoryBarChart(
+    data: List<Pair<String, Double>>,
+    modifier: Modifier = Modifier,
+    colors: List<Color> = FinanceColors.CategoryPalette,
+    valueFormatter: (Double) -> String = { it.toString() }
+) {
+    val total = data.sumOf { it.second }
+    val context = LocalContext.current
+    Column(modifier) {
+        if (data.isEmpty() || total <= 0.0) {
+            Box(Modifier.fillMaxWidth().height(160.dp), contentAlignment = Alignment.Center) {
+                Text(stringResource(R.string.no_expense_data_yet), color = FinanceColors.TextSoft, fontSize = 13.sp)
+            }
+            return@Column
+        }
+        val maxValue = data.maxOf { it.second }.coerceAtLeast(1.0)
+        data.forEachIndexed { index, (label, value) ->
+            Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        CategoryLabels.display(context, label),
+                        fontSize = 12.sp,
+                        color = FinanceColors.Text,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(valueFormatter(value), fontSize = 12.sp, color = FinanceColors.TextSoft)
+                }
+                Spacer(Modifier.height(4.dp))
+                Canvas(modifier = Modifier.fillMaxWidth().height(10.dp)) {
+                    val barW = (value / maxValue * size.width).toFloat().coerceAtLeast(2.dp.toPx())
+                    drawRoundRect(
+                        color = colors[index % colors.size],
+                        topLeft = Offset.Zero,
+                        size = Size(barW, size.height),
+                        cornerRadius = CornerRadius(3.dp.toPx())
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** Dual series line chart (e.g. income + expense over months). */
+@Composable
+fun DualLineChart(
+    labels: List<String>,
+    seriesA: List<Float>,
+    seriesB: List<Float>,
+    colorA: Color,
+    colorB: Color,
+    avgA: Float? = null,
+    avgB: Float? = null,
+    modifier: Modifier = Modifier
+) {
+    Canvas(modifier = modifier.fillMaxWidth().height(200.dp).padding(vertical = 8.dp)) {
+        val n = labels.size
+        if (n == 0) return@Canvas
+        val bottomPad = 20.dp.toPx()
+        val topPad = 8.dp.toPx()
+        val chartWidth = size.width
+        val chartHeight = size.height - bottomPad - topPad
+        val maxValue = (seriesA + seriesB + listOfNotNull(avgA, avgB))
+            .maxOrNull()?.coerceAtLeast(1f) ?: 1f
+
+        fun xFor(i: Int): Float = if (n <= 1) chartWidth / 2f else chartWidth * i / (n - 1).toFloat()
+        fun yFor(v: Float): Float = topPad + chartHeight - (v / maxValue * chartHeight)
+
+        val dash = PathEffect.dashPathEffect(floatArrayOf(10f, 6f))
+        avgA?.let {
+            drawLine(colorA, Offset(0f, yFor(it)), Offset(chartWidth, yFor(it)),
+                strokeWidth = 1.5.dp.toPx(), pathEffect = dash)
+        }
+        avgB?.let {
+            drawLine(colorB, Offset(0f, yFor(it)), Offset(chartWidth, yFor(it)),
+                strokeWidth = 1.5.dp.toPx(), pathEffect = dash)
+        }
+
+        fun drawSeries(values: List<Float>, color: Color) {
+            if (values.isEmpty()) return
+            val path = Path().apply {
+                moveTo(xFor(0), yFor(values[0]))
+                for (i in 1 until n) lineTo(xFor(i), yFor(values.getOrElse(i) { 0f }))
+            }
+            drawPath(path, color = color, style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round))
+            values.forEachIndexed { i, v ->
+                drawCircle(color, radius = 2.5.dp.toPx(), center = Offset(xFor(i), yFor(v)))
+            }
+        }
+        drawSeries(seriesA, colorA)
+        drawSeries(seriesB, colorB)
+
+        val labelStep = maxOf(1, n / 6)
+        val textSizePx = 10.sp.toPx()
+        labels.forEachIndexed { i, label ->
+            if (i % labelStep == 0 || i == n - 1) {
+                drawContext.canvas.nativeCanvas.drawText(
+                    label, xFor(i), size.height - 2.dp.toPx(),
+                    axisPaint().apply { textSize = textSizePx }
+                )
+            }
+        }
+    }
+}
+
+/** Single-series vertical bar chart (e.g. savings by month). */
+@Composable
+fun SeriesBarChart(
+    labels: List<String>,
+    values: List<Float>,
+    barColor: Color,
+    modifier: Modifier = Modifier,
+    barColors: List<Color>? = null
+) {
+    Canvas(modifier = modifier.fillMaxWidth().height(200.dp).padding(vertical = 8.dp)) {
+        val n = labels.size
+        if (n == 0) return@Canvas
+        val bottomPad = 20.dp.toPx()
+        val chartWidth = size.width
+        val chartHeight = size.height - bottomPad
+        val maxValue = values.maxOrNull()?.coerceAtLeast(1f) ?: 1f
+        val groupWidth = chartWidth / n
+        val barWidth = groupWidth * 0.5f
+
+        fun yFor(v: Float): Float = chartHeight - (v / maxValue * chartHeight)
+
+        val textSizePx = 10.sp.toPx()
+        for (i in 0 until n) {
+            val v = values.getOrElse(i) { 0f }
+            val h = (chartHeight - yFor(v)).coerceAtLeast(0f)
+            val left = i * groupWidth + (groupWidth - barWidth) / 2f
+            val color = barColors?.getOrElse(i) { barColor } ?: barColor
+            drawRoundRect(
+                color = color,
+                topLeft = Offset(left, chartHeight - h),
+                size = Size(barWidth, h),
+                cornerRadius = CornerRadius(3.dp.toPx())
+            )
+            drawContext.canvas.nativeCanvas.drawText(
+                labels[i],
+                i * groupWidth + groupWidth / 2f,
+                size.height - 4.dp.toPx(),
+                axisPaint().apply { textSize = textSizePx }
+            )
+        }
+    }
+}

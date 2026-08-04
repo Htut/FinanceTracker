@@ -27,7 +27,9 @@ object ProfileDatabaseProvider {
         )
             .addMigrations(
                 FinanceDatabase.MIGRATION_1_2,
-                FinanceDatabase.MIGRATION_2_3
+                FinanceDatabase.MIGRATION_2_3,
+                FinanceDatabase.MIGRATION_3_4,
+                FinanceDatabase.MIGRATION_4_5
             )
             .build()
     }

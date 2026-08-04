@@ -51,7 +51,7 @@
     <string name="label_transfers_net">Pindahan (bersih)</string>
     <string name="label_net">Bersih</string>
     <string name="section_expenses_by_category">Perbelanjaan mengikut Kategori</string>
-    <string name="section_income_vs_expense">Pendapatan vs Perbelanjaan (6 bln, putus-putus = purata)</string>
+    <string name="section_income_vs_expense">Pendapatan vs Perbelanjaan (putus-putus = purata)</string>
     <string name="section_savings_growth">Pertumbuhan Simpanan</string>
     <string name="section_insights">Cerapan</string>
     <string name="avg_monthly_income">Purata Pendapatan Bulanan</string>

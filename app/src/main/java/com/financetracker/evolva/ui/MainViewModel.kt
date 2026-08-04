@@ -1,6 +1,8 @@
 package com.financetracker.evolva.ui
 
 import android.content.Context
+import android.content.Intent
+import android.app.PendingIntent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -8,11 +10,15 @@ import androidx.lifecycle.viewmodel.CreationExtras
 import com.financetracker.evolva.R
 import com.financetracker.evolva.data.AppConstants
 import com.financetracker.evolva.data.backup.BackupManager
+import com.financetracker.evolva.data.backup.DriveAuthOutcome
+import com.financetracker.evolva.data.backup.DriveBackupClient
+import com.financetracker.evolva.data.backup.DriveBackupMeta
 import com.financetracker.evolva.data.backup.toDomain
 import com.financetracker.evolva.data.locale.LocaleHelper
 import com.financetracker.evolva.data.model.Account
 import com.financetracker.evolva.data.model.AppCurrency
 import com.financetracker.evolva.data.model.AppLanguage
+import com.financetracker.evolva.data.model.AutoLockRule
 import com.financetracker.evolva.data.model.Budget
 import com.financetracker.evolva.data.model.Categories
 import com.financetracker.evolva.data.model.DateFilter
@@ -38,6 +44,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 import java.time.YearMonth
 
 sealed class ImportResult {
@@ -47,6 +54,7 @@ sealed class ImportResult {
 
 sealed class UndoAction {
     data class DeleteTransaction(val transaction: Transaction) : UndoAction()
+    data class DeleteBudget(val budget: Budget) : UndoAction()
     data class ClearAll(val transactions: List<Transaction>) : UndoAction()
 }
 
@@ -93,6 +101,9 @@ class MainViewModel(
     val viewOnlyMode: StateFlow<Boolean> = settingsDataStore.viewOnlyMode
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
+    val biometricUnlockEnabled: StateFlow<Boolean> = settingsDataStore.biometricUnlockEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
     val filterAutoCloseSeconds: StateFlow<Int> = profileSession.filterAutoCloseSeconds
         .stateIn(
             viewModelScope,
@@ -109,6 +120,10 @@ class MainViewModel(
 
     val budgetAlertsEnabled: StateFlow<Boolean> = profileSession.budgetAlertsEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    val autoLockRule: StateFlow<AutoLockRule> =
+        profileSession.autoLockRule
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AutoLockRule.OFF)
 
     private val _dateFilter = MutableStateFlow<DateFilter>(DateFilter.All)
     val dateFilter: StateFlow<DateFilter> = _dateFilter
@@ -129,6 +144,14 @@ class MainViewModel(
     private val _unlocked = MutableStateFlow(false)
     val unlocked: StateFlow<Boolean> = _unlocked
 
+    private val driveClient by lazy { DriveBackupClient(appContext) }
+    private val _driveAccountEmail = MutableStateFlow<String?>(null)
+    val driveAccountEmail: StateFlow<String?> = _driveAccountEmail
+    private val _driveBackupMeta = MutableStateFlow<DriveBackupMeta?>(null)
+    val driveBackupMeta: StateFlow<DriveBackupMeta?> = _driveBackupMeta
+    private val _driveBusy = MutableStateFlow(false)
+    val driveBusy: StateFlow<Boolean> = _driveBusy
+
     init {
         viewModelScope.launch {
             LocaleHelper.apply(settingsDataStore.language.first())
@@ -141,6 +164,11 @@ class MainViewModel(
                 if (!has) _unlocked.value = true
             }
         }
+        viewModelScope.launch {
+            combine(transactions, autoLockRule) { txs, rule -> txs to rule }
+                .collect { (txs, rule) -> applyAutoLocks(txs, rule) }
+        }
+        refreshDriveAccount()
     }
 
     fun unlockWithPassword(password: String, onResult: (Boolean) -> Unit) {
@@ -183,11 +211,40 @@ class MainViewModel(
         viewModelScope.launch {
             settingsDataStore.setLanguage(language)
             LocaleHelper.apply(language)
+            // Apply regional home-currency preset to the active profile.
+            profileSettings.setCurrency(language.suggestedCurrency)
         }
     }
 
     fun setViewOnlyMode(enabled: Boolean) {
         viewModelScope.launch { settingsDataStore.setViewOnlyMode(enabled) }
+    }
+
+    fun setBiometricUnlockEnabled(enabled: Boolean) {
+        viewModelScope.launch { settingsDataStore.setBiometricUnlockEnabled(enabled) }
+    }
+
+    fun setAutoLockRule(rule: AutoLockRule) {
+        viewModelScope.launch {
+            profileSettings.setAutoLockRule(rule)
+            applyAutoLocks(transactions.value, rule)
+        }
+    }
+
+    fun setTransactionLocked(id: String, locked: Boolean) {
+        if (viewOnlyMode.value) return
+        viewModelScope.launch {
+            val existing = transactions.value.find { it.id == id } ?: return@launch
+            if (existing.locked == locked) return@launch
+            repository.updateTransaction(existing.copy(locked = locked))
+        }
+    }
+
+    private suspend fun applyAutoLocks(txs: List<Transaction>, rule: AutoLockRule) {
+        if (rule == AutoLockRule.OFF || txs.isEmpty()) return
+        val today = LocalDate.now()
+        txs.filter { !it.locked && rule.shouldLock(it.date, today) }
+            .forEach { repository.updateTransaction(it.copy(locked = true)) }
     }
 
     fun setExchangeRate(foreignCode: String, rateToHome: Double) {
@@ -287,13 +344,18 @@ class MainViewModel(
 
     fun updateTransaction(transaction: Transaction) {
         if (viewOnlyMode.value) return
-        viewModelScope.launch { repository.updateTransaction(transaction) }
+        viewModelScope.launch {
+            val existing = transactions.value.find { it.id == transaction.id }
+            if (existing?.locked == true) return@launch
+            repository.updateTransaction(transaction)
+        }
     }
 
     fun deleteTransaction(id: String, context: Context? = null) {
         if (viewOnlyMode.value) return
         viewModelScope.launch {
             val existing = transactions.value.find { it.id == id } ?: return@launch
+            if (existing.locked) return@launch
             repository.deleteTransaction(id)
             context?.let { ReceiptStore.deleteIfOwned(it, existing.receiptUri) }
             _undoAction.value = UndoAction.DeleteTransaction(existing)
@@ -314,6 +376,7 @@ class MainViewModel(
         viewModelScope.launch {
             when (val action = _undoAction.value) {
                 is UndoAction.DeleteTransaction -> repository.addTransaction(action.transaction)
+                is UndoAction.DeleteBudget -> repository.upsertBudget(action.budget)
                 is UndoAction.ClearAll -> repository.addTransactions(action.transactions)
                 null -> Unit
             }
@@ -335,12 +398,28 @@ class MainViewModel(
 
     fun setBudget(category: String, limit: Double) {
         if (viewOnlyMode.value) return
-        viewModelScope.launch { repository.setBudget(category, limit) }
+        viewModelScope.launch {
+            val existing = budgets.value.find { it.category == category }
+            if (existing?.locked == true) return@launch
+            repository.setBudget(category, limit)
+        }
     }
 
     fun deleteBudget(category: String) {
         if (viewOnlyMode.value) return
-        viewModelScope.launch { repository.deleteBudget(category) }
+        viewModelScope.launch {
+            val existing = budgets.value.find { it.category == category } ?: return@launch
+            if (existing.locked) return@launch
+            repository.deleteBudget(category)
+            _undoAction.value = UndoAction.DeleteBudget(existing)
+        }
+    }
+
+    fun setBudgetLocked(category: String, locked: Boolean) {
+        if (viewOnlyMode.value) return
+        viewModelScope.launch {
+            repository.setBudgetLocked(category, locked)
+        }
     }
 
     fun updateRecurringRule(rule: RecurringRule) {
@@ -353,6 +432,7 @@ class MainViewModel(
                 profileSession.switchTo(profileId)
                 _undoAction.value = null
                 _dateFilter.value = DateFilter.All
+                refreshDriveAccount()
                 _infoMessage.value = str(R.string.msg_switched_profile, activeProfile.value.displayName)
             } catch (e: Exception) {
                 _infoMessage.value = e.message ?: str(R.string.msg_could_not_switch)
@@ -365,6 +445,7 @@ class MainViewModel(
             try {
                 val name = appContext.getString(template.labelRes)
                 val profile = profileSession.setupTemplate(template, name)
+                profileSettings.setCurrency(language.value.suggestedCurrency)
                 _undoAction.value = null
                 _dateFilter.value = DateFilter.All
                 _infoMessage.value = str(R.string.msg_profile_ready, profile.displayName)
@@ -453,6 +534,147 @@ class MainViewModel(
             }
         }
         return ImportResult.Success(importedTransactions.size)
+    }
+
+    /** Import transactions from a CSV matching [BackupManager.toCsv] columns. */
+    fun importCsv(csv: String, replace: Boolean): ImportResult {
+        val imported = BackupManager.parseCsv(csv, currency.value.code)
+            ?: return ImportResult.Invalid
+        if (imported.isEmpty()) return ImportResult.Invalid
+        val customFromCsv = Categories.normalizeCustom(
+            imported.filter { it.type == TransactionType.EXPENSE }.map { it.category }
+        ).filterNot { Categories.isBuiltInExpense(it) }
+
+        viewModelScope.launch {
+            if (replace) {
+                repository.replaceTransactions(imported)
+                _infoMessage.value = str(R.string.msg_csv_replaced, imported.size)
+            } else {
+                repository.mergeIn(imported, emptyList(), emptyList(), emptyList())
+                _infoMessage.value = str(R.string.msg_csv_merged, imported.size)
+            }
+            if (customFromCsv.isNotEmpty()) {
+                profileSettings.setCustomExpenseCategories(
+                    Categories.normalizeCustom(customExpenseCategories.value + customFromCsv)
+                )
+            }
+        }
+        return ImportResult.Success(imported.size)
+    }
+
+    fun connectDrive(onNeedsUi: (PendingIntent) -> Unit) {
+        if (_driveBusy.value) return
+        viewModelScope.launch {
+            _driveBusy.value = true
+            when (val outcome = driveClient.authorize()) {
+                is DriveAuthOutcome.NeedsUi -> {
+                    _driveBusy.value = false
+                    onNeedsUi(outcome.pendingIntent)
+                }
+                is DriveAuthOutcome.Ready -> {
+                    applyDriveReady(outcome)
+                    _driveBusy.value = false
+                }
+                is DriveAuthOutcome.Failed -> {
+                    _driveBusy.value = false
+                    _infoMessage.value = outcome.message.ifBlank { str(R.string.drive_sign_in_failed) }
+                }
+            }
+        }
+    }
+
+    fun handleDriveAuthorizationResult(data: Intent?) {
+        viewModelScope.launch {
+            _driveBusy.value = true
+            when (val outcome = driveClient.completeAuthorization(data)) {
+                is DriveAuthOutcome.Ready -> applyDriveReady(outcome)
+                is DriveAuthOutcome.Failed ->
+                    _infoMessage.value = outcome.message.ifBlank { str(R.string.drive_sign_in_failed) }
+                is DriveAuthOutcome.NeedsUi ->
+                    _infoMessage.value = str(R.string.drive_sign_in_failed)
+            }
+            _driveBusy.value = false
+        }
+    }
+
+    private suspend fun applyDriveReady(outcome: DriveAuthOutcome.Ready) {
+        _driveAccountEmail.value = outcome.email ?: str(R.string.drive_account_connected)
+        _driveBackupMeta.value = driveClient.backupMeta(activeProfile.value.id)
+        _infoMessage.value = str(
+            R.string.drive_signed_in,
+            outcome.email ?: str(R.string.drive_account_connected)
+        )
+    }
+
+    fun refreshDriveAccount() {
+        viewModelScope.launch {
+            val email = driveClient.currentSessionEmail()
+            if (email == null && driveClient.silentAccessToken() == null) {
+                _driveAccountEmail.value = null
+                _driveBackupMeta.value = null
+            } else {
+                _driveAccountEmail.value = email ?: str(R.string.drive_account_connected)
+                _driveBackupMeta.value = driveClient.backupMeta(activeProfile.value.id)
+            }
+        }
+    }
+
+    fun signOutDrive() {
+        viewModelScope.launch {
+            driveClient.signOut()
+            _driveAccountEmail.value = null
+            _driveBackupMeta.value = null
+            _infoMessage.value = str(R.string.drive_signed_out)
+        }
+    }
+
+    fun backupToDrive() {
+        if (_driveBusy.value) return
+        viewModelScope.launch {
+            _driveBusy.value = true
+            // Refresh token silently before upload when possible.
+            driveClient.silentAccessToken()
+            val json = exportBackupJson()
+            val result = driveClient.uploadBackup(activeProfile.value.id, json)
+            _driveBusy.value = false
+            result
+                .onSuccess { meta ->
+                    _driveBackupMeta.value = meta
+                    _infoMessage.value = str(R.string.drive_backup_ok)
+                }
+                .onFailure { e ->
+                    _infoMessage.value = when (e.message) {
+                        "NOT_SIGNED_IN" -> str(R.string.drive_not_signed_in)
+                        else -> str(R.string.drive_backup_fail, e.message ?: "")
+                    }
+                }
+        }
+    }
+
+    fun restoreFromDrive() {
+        if (_driveBusy.value) return
+        viewModelScope.launch {
+            _driveBusy.value = true
+            driveClient.silentAccessToken()
+            val result = driveClient.downloadBackup(activeProfile.value.id)
+            _driveBusy.value = false
+            result
+                .onSuccess { json ->
+                    when (importBackup(json, replace = true)) {
+                        is ImportResult.Success -> Unit // importBackup sets status message
+                        ImportResult.Invalid ->
+                            _infoMessage.value = str(R.string.import_invalid)
+                    }
+                    _driveBackupMeta.value = driveClient.backupMeta(activeProfile.value.id)
+                }
+                .onFailure { e ->
+                    _infoMessage.value = when (e.message) {
+                        "NOT_SIGNED_IN" -> str(R.string.drive_not_signed_in)
+                        "NO_BACKUP" -> str(R.string.drive_no_backup)
+                        else -> str(R.string.drive_restore_fail, e.message ?: "")
+                    }
+                }
+        }
     }
 }
 

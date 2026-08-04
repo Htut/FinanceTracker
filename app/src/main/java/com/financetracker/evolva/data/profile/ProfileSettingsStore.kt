@@ -11,6 +11,7 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.preferencesDataStoreFile
 import com.financetracker.evolva.data.AppConstants
 import com.financetracker.evolva.data.model.AppCurrency
+import com.financetracker.evolva.data.model.AutoLockRule
 import com.financetracker.evolva.data.model.Categories
 import com.financetracker.evolva.data.prefs.SettingsDataStore
 import kotlinx.coroutines.flow.Flow
@@ -33,6 +34,7 @@ class ProfileSettingsStore private constructor(
     private val customExpenseCategoriesKey = stringPreferencesKey("custom_expense_categories")
     private val budgetAlertsEnabledKey = booleanPreferencesKey("budget_alerts_enabled")
     private val exchangeRatesKey = stringPreferencesKey("exchange_rates")
+    private val autoLockDaysKey = intPreferencesKey("auto_lock_days")
 
     private val json = Json { ignoreUnknownKeys = true }
     private val rateSerializer = MapSerializer(String.serializer(), Double.serializer())
@@ -52,6 +54,11 @@ class ProfileSettingsStore private constructor(
     val budgetAlertsEnabled: Flow<Boolean> = dataStore.data.map { prefs ->
         prefs[budgetAlertsEnabledKey] ?: false
     }
+
+    val autoLockRule: Flow<AutoLockRule> =
+        dataStore.data.map { prefs ->
+            AutoLockRule.fromDays(prefs[autoLockDaysKey])
+        }
 
     val exchangeRates: Flow<Map<String, Double>> = dataStore.data.map { prefs ->
         val stored = decodeRates(prefs[exchangeRatesKey])
@@ -82,6 +89,10 @@ class ProfileSettingsStore private constructor(
 
     suspend fun setBudgetAlertsEnabled(enabled: Boolean) {
         dataStore.edit { it[budgetAlertsEnabledKey] = enabled }
+    }
+
+    suspend fun setAutoLockRule(rule: AutoLockRule) {
+        dataStore.edit { it[autoLockDaysKey] = rule.days }
     }
 
     suspend fun setFilterAutoCloseSeconds(seconds: Int) {

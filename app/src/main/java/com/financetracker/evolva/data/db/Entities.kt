@@ -36,13 +36,15 @@ data class TransactionEntity(
     val accountId: String? = null,
     val receiptUri: String? = null,
     val currencyCode: String? = null,
-    val exchangeRate: Double? = null
+    val exchangeRate: Double? = null,
+    val locked: Boolean = false
 )
 
 @Entity(tableName = "budgets")
 data class BudgetEntity(
     @PrimaryKey val category: String,
-    val limitAmount: Double
+    val limitAmount: Double,
+    val locked: Boolean = false
 )
 
 @Entity(tableName = "recurring_rules")
@@ -90,7 +92,8 @@ fun TransactionEntity.toDomain() = Transaction(
     accountId = accountId,
     receiptUri = receiptUri,
     currencyCode = currencyCode,
-    exchangeRate = exchangeRate
+    exchangeRate = exchangeRate,
+    locked = locked
 )
 
 fun Transaction.toEntity() = TransactionEntity(
@@ -106,11 +109,12 @@ fun Transaction.toEntity() = TransactionEntity(
     accountId = accountId,
     receiptUri = receiptUri,
     currencyCode = currencyCode,
-    exchangeRate = exchangeRate
+    exchangeRate = exchangeRate,
+    locked = locked
 )
 
-fun BudgetEntity.toDomain() = Budget(category = category, limit = limitAmount)
-fun Budget.toEntity() = BudgetEntity(category = category, limitAmount = limit)
+fun BudgetEntity.toDomain() = Budget(category = category, limit = limitAmount, locked = locked)
+fun Budget.toEntity() = BudgetEntity(category = category, limitAmount = limit, locked = locked)
 
 fun RecurringRuleEntity.toDomain() = RecurringRule(
     id = id,

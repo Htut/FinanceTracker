@@ -31,6 +31,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -40,18 +41,27 @@ import com.financetracker.evolva.R
 import com.financetracker.evolva.data.calc.FinanceCalculator
 import com.financetracker.evolva.data.export.DetailExport
 import com.financetracker.evolva.data.export.DetailShareFormat
-import com.financetracker.evolva.data.locale.CategoryLabels
 import com.financetracker.evolva.data.model.DateFilter
 import com.financetracker.evolva.data.model.Transaction
 import com.financetracker.evolva.data.model.TransactionType
 import com.financetracker.evolva.data.model.filteredBy
 import com.financetracker.evolva.data.model.formatAmount
 import com.financetracker.evolva.ui.MainViewModel
+import com.financetracker.evolva.ui.components.CategoryBarChart
+import com.financetracker.evolva.ui.components.ChartTypeChips
+import com.financetracker.evolva.ui.components.DonutChart
+import com.financetracker.evolva.ui.components.DualLineChart
+import com.financetracker.evolva.ui.components.IncomeExpenseBarChart
 import com.financetracker.evolva.ui.components.SectionCard
+import com.financetracker.evolva.ui.components.SeriesBarChart
 import com.financetracker.evolva.ui.theme.FinanceColors
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle
 import java.util.Locale
+
+private enum class ReportCategoryChartType { DONUT, BARS }
+private enum class ReportTrendChartType { BARS, LINES }
 
 @Composable
 fun ReportScreen(viewModel: MainViewModel) {
@@ -60,6 +70,8 @@ fun ReportScreen(viewModel: MainViewModel) {
     val context = LocalContext.current
     var month by remember { mutableStateOf(YearMonth.now()) }
     var showShareOptions by remember { mutableStateOf(false) }
+    var categoryChartType by remember { mutableStateOf(ReportCategoryChartType.DONUT) }
+    var trendChartType by remember { mutableStateOf(ReportTrendChartType.BARS) }
 
     fun fmt(v: Double) = formatAmount(v, currency)
 
@@ -84,6 +96,24 @@ fun ReportScreen(viewModel: MainViewModel) {
             .sortedByDescending { it.second }
             .take(8)
     }
+
+    val locale = LocalConfiguration.current.locales[0]
+    val trendMonths = remember(month) { FinanceCalculator.lastNMonths(6, month) }
+    val trendLabels = remember(trendMonths, locale) {
+        trendMonths.map { it.month.getDisplayName(TextStyle.SHORT, locale) }
+    }
+    val incomeSeries = remember(transactions, trendMonths) {
+        trendMonths.map { FinanceCalculator.sumFor(transactions, TransactionType.INCOME, it).toFloat() }
+    }
+    val expenseSeries = remember(transactions, trendMonths) {
+        trendMonths.map { FinanceCalculator.sumFor(transactions, TransactionType.EXPENSE, it).toFloat() }
+    }
+    val breakdownLabels = listOf(
+        stringResource(R.string.label_income),
+        stringResource(R.string.label_expense),
+        stringResource(R.string.label_savings)
+    )
+    val breakdownValues = listOf(income.toFloat(), expense.toFloat(), savings.toFloat())
 
     val monthLabel = remember(month) {
         month.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault()))
@@ -183,6 +213,21 @@ fun ReportScreen(viewModel: MainViewModel) {
         }
 
         item {
+            SectionCard(title = stringResource(R.string.report_month_breakdown)) {
+                SeriesBarChart(
+                    labels = breakdownLabels,
+                    values = breakdownValues,
+                    barColor = FinanceColors.Accent,
+                    barColors = listOf(
+                        FinanceColors.Income,
+                        FinanceColors.Expense,
+                        FinanceColors.Savings
+                    )
+                )
+            }
+        }
+
+        item {
             SectionCard(title = stringResource(R.string.report_top_categories)) {
                 if (topCategories.isEmpty()) {
                     Text(
@@ -191,21 +236,59 @@ fun ReportScreen(viewModel: MainViewModel) {
                         color = FinanceColors.TextSoft
                     )
                 } else {
-                    topCategories.forEach { (category, amount) ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                CategoryLabels.display(context, category),
-                                fontSize = 13.5.sp,
-                                color = FinanceColors.Text
-                            )
-                            Text(fmt(amount), fontSize = 13.5.sp, color = FinanceColors.Expense)
+                    ChartTypeChips(
+                        options = listOf(
+                            stringResource(R.string.chart_type_donut) to
+                                (categoryChartType == ReportCategoryChartType.DONUT),
+                            stringResource(R.string.chart_type_bars) to
+                                (categoryChartType == ReportCategoryChartType.BARS)
+                        ),
+                        onSelect = {
+                            categoryChartType =
+                                if (it == 0) ReportCategoryChartType.DONUT else ReportCategoryChartType.BARS
                         }
+                    )
+                    when (categoryChartType) {
+                        ReportCategoryChartType.DONUT ->
+                            DonutChart(data = topCategories, valueFormatter = { fmt(it) })
+                        ReportCategoryChartType.BARS ->
+                            CategoryBarChart(data = topCategories, valueFormatter = { fmt(it) })
                     }
+                }
+            }
+        }
+
+        item {
+            SectionCard(title = stringResource(R.string.report_income_vs_expense)) {
+                ChartTypeChips(
+                    options = listOf(
+                        stringResource(R.string.chart_type_bars) to
+                            (trendChartType == ReportTrendChartType.BARS),
+                        stringResource(R.string.chart_type_lines) to
+                            (trendChartType == ReportTrendChartType.LINES)
+                    ),
+                    onSelect = {
+                        trendChartType =
+                            if (it == 0) ReportTrendChartType.BARS else ReportTrendChartType.LINES
+                    }
+                )
+                when (trendChartType) {
+                    ReportTrendChartType.BARS ->
+                        IncomeExpenseBarChart(
+                            labels = trendLabels,
+                            income = incomeSeries,
+                            expense = expenseSeries,
+                            avgIncome = null,
+                            avgExpense = null
+                        )
+                    ReportTrendChartType.LINES ->
+                        DualLineChart(
+                            labels = trendLabels,
+                            seriesA = incomeSeries,
+                            seriesB = expenseSeries,
+                            colorA = FinanceColors.Income,
+                            colorB = FinanceColors.Expense
+                        )
                 }
             }
         }

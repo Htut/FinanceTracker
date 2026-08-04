@@ -29,12 +29,14 @@ class MainActivity : AppCompatActivity() {
             val theme by viewModel.appTheme.collectAsState()
             val hasAppPassword by viewModel.hasAppPassword.collectAsState()
             val unlocked by viewModel.unlocked.collectAsState()
+            val biometricUnlockEnabled by viewModel.biometricUnlockEnabled.collectAsState()
             FinanceTrackerTheme(theme = theme) {
                 when {
                     AppConstants.isBetaExpired() -> BetaExpiredScreen()
                     hasAppPassword && !unlocked -> AppLockScreen(
                         onUnlockWithPassword = viewModel::unlockWithPassword,
-                        onUnlocked = viewModel::unlockSession
+                        onUnlocked = viewModel::unlockSession,
+                        biometricUnlockEnabled = biometricUnlockEnabled
                     )
                     else -> AppNavGraph(viewModel = viewModel)
                 }

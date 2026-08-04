@@ -62,7 +62,8 @@ fun DateFilterBar(
     filter: DateFilter,
     onFilterChange: (DateFilter) -> Unit,
     modifier: Modifier = Modifier,
-    autoCloseSeconds: Int = 7
+    autoCloseSeconds: Int = 7,
+    titleRes: Int = R.string.date_filter
 ) {
     var expanded by remember { mutableStateOf(true) }
     var interactionTick by remember { mutableIntStateOf(0) }
@@ -102,7 +103,7 @@ fun DateFilterBar(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(stringResource(R.string.date_filter), fontSize = 12.sp, color = FinanceColors.TextSoft)
+                Text(stringResource(titleRes), fontSize = 12.sp, color = FinanceColors.TextSoft)
                 Text(
                     filter.label(stringResource(R.string.date_filter_all_dates)),
                     fontSize = 13.sp,

@@ -51,7 +51,7 @@
     <string name="label_transfers_net">منتقلیاں (خالص)</string>
     <string name="label_net">خالص</string>
     <string name="section_expenses_by_category">زمرے کے لحاظ سے اخراجات</string>
-    <string name="section_income_vs_expense">آمدنی بمقابلہ اخراجات (٦ ماہ، ڈیش = اوسط)</string>
+    <string name="section_income_vs_expense">آمدنی بمقابلہ اخراجات (ڈیش = اوسط)</string>
     <string name="section_savings_growth">بچت میں اضافہ</string>
     <string name="section_insights">بصیرت</string>
     <string name="avg_monthly_income">اوسط ماہانہ آمدنی</string>

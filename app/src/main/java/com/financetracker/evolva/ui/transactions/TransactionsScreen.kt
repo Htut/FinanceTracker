@@ -50,11 +50,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.financetracker.evolva.R
 import com.financetracker.evolva.data.locale.CategoryLabels
+import com.financetracker.evolva.data.model.AppCurrency
 import com.financetracker.evolva.data.model.Categories
 import com.financetracker.evolva.data.model.Transaction
 import com.financetracker.evolva.data.model.TransactionQuery
+import com.financetracker.evolva.data.model.TransactionSort
 import com.financetracker.evolva.data.model.TransactionType
-import com.financetracker.evolva.data.model.AppCurrency
+import com.financetracker.evolva.data.model.applySort
 import com.financetracker.evolva.data.model.filteredByQuery
 import com.financetracker.evolva.data.model.formatAmount
 import com.financetracker.evolva.data.model.homeAmount
@@ -62,8 +64,8 @@ import com.financetracker.evolva.ui.MainViewModel
 import com.financetracker.evolva.ui.UndoAction
 import com.financetracker.evolva.ui.components.DateFilterBar
 import com.financetracker.evolva.ui.components.TransactionRow
+import com.financetracker.evolva.ui.components.TransactionSortChips
 import com.financetracker.evolva.ui.theme.FinanceColors
-import java.time.LocalTime
 
 @Composable
 fun TransactionsScreen(viewModel: MainViewModel) {
@@ -102,6 +104,7 @@ fun TransactionsScreen(viewModel: MainViewModel) {
     var minAmountText by remember { mutableStateOf("") }
     var maxAmountText by remember { mutableStateOf("") }
     var showAdvanced by remember { mutableStateOf(false) }
+    var sort by remember { mutableStateOf(TransactionSort.DATE_DESC) }
 
     val categoryOptions = remember(transactions, customExpenseCategories, typeFilter) {
         val fromData = transactions
@@ -130,11 +133,8 @@ fun TransactionsScreen(viewModel: MainViewModel) {
         )
     }
 
-    val sorted = remember(transactions, query) {
-        transactions.filteredByQuery(query).sortedWith(
-            compareByDescending<Transaction> { it.date }
-                .thenByDescending { it.time ?: LocalTime.MIN }
-        )
+    val sorted = remember(transactions, query, sort) {
+        transactions.filteredByQuery(query).applySort(sort)
     }
 
     Scaffold(
@@ -211,6 +211,17 @@ fun TransactionsScreen(viewModel: MainViewModel) {
                     )
                 }
             }
+
+            Text(
+                stringResource(R.string.sort_label),
+                fontSize = 12.sp,
+                color = FinanceColors.TextSoft,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
+            )
+            TransactionSortChips(
+                sort = sort,
+                onSortChange = { sort = it }
+            )
 
             TextButton(
                 onClick = { showAdvanced = !showAdvanced },
@@ -324,11 +335,18 @@ fun TransactionsScreen(viewModel: MainViewModel) {
                             formattedAmount = amountLabel,
                             readOnly = viewOnly,
                             onClick = {
-                                sheetTransaction = tx
-                                isNew = false
-                                showSheet = true
+                                if (!tx.locked) {
+                                    sheetTransaction = tx
+                                    isNew = false
+                                    showSheet = true
+                                }
                             },
-                            onDelete = { pendingDelete = tx }
+                            onDelete = {
+                                if (!tx.locked) pendingDelete = tx
+                            },
+                            onToggleLock = {
+                                viewModel.setTransactionLocked(tx.id, !tx.locked)
+                            }
                         )
                         HorizontalDivider(color = FinanceColors.Border)
                     }

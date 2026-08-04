@@ -51,7 +51,7 @@
     <string name="label_transfers_net">Chuyển khoản (ròng)</string>
     <string name="label_net">Ròng</string>
     <string name="section_expenses_by_category">Chi tiêu theo danh mục</string>
-    <string name="section_income_vs_expense">Thu vs Chi (6 tháng, nét đứt = trung bình)</string>
+    <string name="section_income_vs_expense">Thu vs Chi (nét đứt = trung bình)</string>
     <string name="section_savings_growth">Tăng trưởng tiết kiệm</string>
     <string name="section_insights">Thông tin chi tiết</string>
     <string name="avg_monthly_income">Thu nhập TB tháng</string>

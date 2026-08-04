@@ -51,7 +51,7 @@
     <string name="label_transfers_net">Virements (net)</string>
     <string name="label_net">Net</string>
     <string name="section_expenses_by_category">Dépenses par catégorie</string>
-    <string name="section_income_vs_expense">Revenus vs dépenses (6 mois, pointillés = moyenne)</string>
+    <string name="section_income_vs_expense">Revenus vs dépenses (pointillés = moyenne)</string>
     <string name="section_savings_growth">Croissance de l\'épargne</string>
     <string name="section_insights">Aperçus</string>
     <string name="avg_monthly_income">Revenu mensuel moyen</string>

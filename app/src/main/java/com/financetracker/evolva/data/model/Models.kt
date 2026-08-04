@@ -147,7 +147,9 @@ data class Transaction(
     /** Currency of [amount]; null means app home currency. */
     val currencyCode: String? = null,
     /** Units of home currency per 1 unit of [currencyCode]. Null/blank = 1.0. */
-    val exchangeRate: Double? = null
+    val exchangeRate: Double? = null,
+    /** When true, edit/delete are blocked until unlocked. */
+    val locked: Boolean = false
 )
 
 /** Convert transaction amount into the app's home currency. */
@@ -164,7 +166,8 @@ fun Transaction.formatRecordedAt(): String =
 
 data class Budget(
     val category: String,
-    val limit: Double
+    val limit: Double,
+    val locked: Boolean = false
 )
 
 data class RecurringRule(

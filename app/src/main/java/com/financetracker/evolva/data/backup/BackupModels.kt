@@ -26,7 +26,8 @@ data class TransactionDto(
     val accountId: String? = null,
     val receiptUri: String? = null,
     val currencyCode: String? = null,
-    val exchangeRate: Double? = null
+    val exchangeRate: Double? = null,
+    val locked: Boolean = false
 )
 
 @Serializable
@@ -41,7 +42,8 @@ data class AccountDto(
 @Serializable
 data class BudgetDto(
     val category: String,
-    val limit: Double
+    val limit: Double,
+    val locked: Boolean = false
 )
 
 @Serializable
@@ -83,7 +85,8 @@ fun Transaction.toDto() = TransactionDto(
     date = date.toString(), time = time?.toString(),
     note = note, direction = direction?.name, recurringId = recurringId,
     accountId = accountId, receiptUri = receiptUri,
-    currencyCode = currencyCode, exchangeRate = exchangeRate
+    currencyCode = currencyCode, exchangeRate = exchangeRate,
+    locked = locked
 )
 
 fun TransactionDto.toDomain() = Transaction(
@@ -99,7 +102,8 @@ fun TransactionDto.toDomain() = Transaction(
     accountId = accountId,
     receiptUri = receiptUri,
     currencyCode = currencyCode,
-    exchangeRate = exchangeRate
+    exchangeRate = exchangeRate,
+    locked = locked
 )
 
 fun Account.toDto() = AccountDto(
@@ -115,8 +119,8 @@ fun AccountDto.toDomain() = Account(
     archived = archived
 )
 
-fun Budget.toDto() = BudgetDto(category = category, limit = limit)
-fun BudgetDto.toDomain() = Budget(category = category, limit = limit)
+fun Budget.toDto() = BudgetDto(category = category, limit = limit, locked = locked)
+fun BudgetDto.toDomain() = Budget(category = category, limit = limit, locked = locked)
 
 fun RecurringRule.toDto() = RecurringRuleDto(
     id = id, type = type.name, category = category, amount = amount, note = note,

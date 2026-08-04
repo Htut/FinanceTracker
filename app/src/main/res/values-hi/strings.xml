@@ -51,7 +51,7 @@
     <string name="label_transfers_net">स्थानांतरण (शुद्ध)</string>
     <string name="label_net">शुद्ध</string>
     <string name="section_expenses_by_category">श्रेणी के अनुसार व्यय</string>
-    <string name="section_income_vs_expense">आय बनाम व्यय (६ माह, डैश = औसत)</string>
+    <string name="section_income_vs_expense">आय बनाम व्यय (डैश = औसत)</string>
     <string name="section_savings_growth">बचत वृद्धि</string>
     <string name="section_insights">अंतर्दृष्टि</string>
     <string name="avg_monthly_income">औसत मासिक आय</string>

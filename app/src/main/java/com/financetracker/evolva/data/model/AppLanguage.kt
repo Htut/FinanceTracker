@@ -8,28 +8,30 @@ enum class AppLanguage(
     val tag: String,
     /** Native / endonym label shown in the picker. */
     val nativeLabel: String,
-    val englishLabel: String
+    val englishLabel: String,
+    /** Suggested home currency for a profile when this language is selected. */
+    val suggestedCurrency: AppCurrency
 ) {
-    ENGLISH("en", "English", "English"),
-    MALAY("ms", "Bahasa Melayu", "Malay"),
-    MYANMAR("my", "မြန်မာ", "Myanmar"),
-    INDONESIAN("id", "Bahasa Indonesia", "Indonesian"),
-    TAMIL("ta", "தமிழ்", "Tamil"),
-    CHINESE("zh-CN", "中文", "Chinese"),
-    JAPANESE("ja", "日本語", "Japanese"),
-    KOREAN("ko", "한국어", "Korean"),
-    RUSSIAN("ru", "Русский", "Russian"),
-    THAI("th", "ไทย", "Thai"),
-    SPANISH("es", "Español", "Spanish"),
-    FRENCH("fr", "Français", "French"),
-    ITALIAN("it", "Italiano", "Italian"),
-    VIETNAMESE("vi", "Tiếng Việt", "Vietnamese"),
-    TURKISH("tr", "Türkçe", "Turkish"),
-    PERSIAN("fa", "فارسی", "Persian"),
-    GERMAN("de", "Deutsch", "German"),
-    ARABIC("ar", "العربية", "Arabic"),
-    URDU("ur", "اردو", "Urdu"),
-    HINDI("hi", "हिन्दी", "Hindi");
+    ENGLISH("en", "English", "English", AppCurrency.USD),
+    MALAY("ms", "Bahasa Melayu", "Malay", AppCurrency.MYR),
+    MYANMAR("my", "မြန်မာ", "Myanmar", AppCurrency.MMK),
+    INDONESIAN("id", "Bahasa Indonesia", "Indonesian", AppCurrency.IDR),
+    TAMIL("ta", "தமிழ்", "Tamil", AppCurrency.INR),
+    CHINESE("zh-CN", "中文", "Chinese", AppCurrency.CNY),
+    JAPANESE("ja", "日本語", "Japanese", AppCurrency.JPY),
+    KOREAN("ko", "한국어", "Korean", AppCurrency.KRW),
+    RUSSIAN("ru", "Русский", "Russian", AppCurrency.RUB),
+    THAI("th", "ไทย", "Thai", AppCurrency.THB),
+    SPANISH("es", "Español", "Spanish", AppCurrency.EUR),
+    FRENCH("fr", "Français", "French", AppCurrency.EUR),
+    ITALIAN("it", "Italiano", "Italian", AppCurrency.EUR),
+    VIETNAMESE("vi", "Tiếng Việt", "Vietnamese", AppCurrency.VND),
+    TURKISH("tr", "Türkçe", "Turkish", AppCurrency.TRY),
+    PERSIAN("fa", "فارسی", "Persian", AppCurrency.USD),
+    GERMAN("de", "Deutsch", "German", AppCurrency.EUR),
+    ARABIC("ar", "العربية", "Arabic", AppCurrency.SAR),
+    URDU("ur", "اردو", "Urdu", AppCurrency.PKR),
+    HINDI("hi", "हिन्दी", "Hindi", AppCurrency.INR);
 
     companion object {
         fun fromTag(tag: String?): AppLanguage {
