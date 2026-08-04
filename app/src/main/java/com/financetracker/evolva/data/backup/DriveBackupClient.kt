@@ -4,7 +4,6 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import com.google.android.gms.auth.api.identity.AuthorizationRequest
-import com.google.android.gms.auth.api.identity.ClearTokenRequest
 import com.google.android.gms.auth.api.identity.Identity
 import com.google.android.gms.common.api.Scope
 import com.google.api.client.http.ByteArrayContent
@@ -41,16 +40,16 @@ class DriveBackupClient(private val appContext: Context) {
     @Volatile
     private var cachedAccessToken: String? = null
 
+    /**
+     * After [signOut], skip silent re-auth until the user explicitly connects
+     * again. (Play Services may still hold grants; we treat app sign-out as local.)
+     */
+    @Volatile
+    private var sessionDismissed: Boolean = false
+
     suspend fun authorize(): DriveAuthOutcome = withContext(Dispatchers.Main) {
         runCatching {
-            val request = AuthorizationRequest.builder()
-                .setRequestedScopes(
-                    listOf(
-                        Scope(DriveScopes.DRIVE_APPDATA),
-                        Scope("email")
-                    )
-                )
-                .build()
+            val request = authorizationRequest()
             val result = authClient.authorize(request).await()
             if (result.hasResolution()) {
                 val pending = result.pendingIntent
@@ -58,7 +57,7 @@ class DriveBackupClient(private val appContext: Context) {
                 DriveAuthOutcome.NeedsUi(pending)
             } else {
                 val token = result.accessToken ?: error("Missing access token")
-                cachedAccessToken = token
+                markSignedIn(token)
                 DriveAuthOutcome.Ready(token, fetchEmail(token))
             }
         }.getOrElse { DriveAuthOutcome.Failed(it.message ?: "Authorization failed") }
@@ -69,30 +68,23 @@ class DriveBackupClient(private val appContext: Context) {
             runCatching {
                 val result = authClient.getAuthorizationResultFromIntent(data)
                 val token = result.accessToken ?: error("Missing access token")
-                cachedAccessToken = token
+                markSignedIn(token)
                 DriveAuthOutcome.Ready(token, fetchEmail(token))
             }.getOrElse { DriveAuthOutcome.Failed(it.message ?: "Authorization failed") }
         }
 
     /**
      * Tries to obtain a token without showing UI. Returns null if the user
-     * must sign in / grant Drive access first.
+     * must sign in / grant Drive access first, or after a local [signOut].
      */
     suspend fun silentAccessToken(): String? = withContext(Dispatchers.Main) {
+        if (sessionDismissed) return@withContext null
         runCatching {
-            val request = AuthorizationRequest.builder()
-                .setRequestedScopes(
-                    listOf(
-                        Scope(DriveScopes.DRIVE_APPDATA),
-                        Scope("email")
-                    )
-                )
-                .build()
-            val result = authClient.authorize(request).await()
+            val result = authClient.authorize(authorizationRequest()).await()
             if (result.hasResolution()) {
                 null
             } else {
-                result.accessToken?.also { cachedAccessToken = it }
+                result.accessToken?.also { markSignedIn(it) }
             }
         }.getOrNull()
     }
@@ -104,19 +96,24 @@ class DriveBackupClient(private val appContext: Context) {
     }
 
     suspend fun signOut() = withContext(Dispatchers.IO) {
-        val token = cachedAccessToken
         cachedAccessToken = null
-        if (token != null) {
-            runCatching {
-                authClient.clearToken(
-                    ClearTokenRequest.builder()
-                        .setToken(token)
-                        .build()
-                ).await()
-            }
-        }
-        Unit
+        sessionDismissed = true
     }
+
+    private fun markSignedIn(token: String) {
+        cachedAccessToken = token
+        sessionDismissed = false
+    }
+
+    private fun authorizationRequest(): AuthorizationRequest =
+        AuthorizationRequest.builder()
+            .setRequestedScopes(
+                listOf(
+                    Scope(DriveScopes.DRIVE_APPDATA),
+                    Scope("email")
+                )
+            )
+            .build()
 
     suspend fun uploadBackup(profileId: String, jsonBody: String): Result<DriveBackupMeta> =
         withContext(Dispatchers.IO) {
