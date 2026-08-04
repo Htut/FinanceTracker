@@ -31,7 +31,12 @@ enum class AppLanguage(
     GERMAN("de", "Deutsch", "German", AppCurrency.EUR),
     ARABIC("ar", "العربية", "Arabic", AppCurrency.SAR),
     URDU("ur", "اردو", "Urdu", AppCurrency.PKR),
-    HINDI("hi", "हिन्दी", "Hindi", AppCurrency.INR);
+    HINDI("hi", "हिन्दी", "Hindi", AppCurrency.INR),
+    BENGALI("bn", "বাংলা", "Bengali", AppCurrency.BDT),
+    ZULU("zu", "isiZulu", "Zulu", AppCurrency.ZAR),
+    SHAN("shn", "လိၵ်ႈတႆး", "Shan", AppCurrency.MMK),
+    DUTCH("nl", "Nederlands", "Dutch", AppCurrency.EUR),
+    PORTUGUESE("pt", "Português", "Portuguese", AppCurrency.BRL);
 
     companion object {
         fun fromTag(tag: String?): AppLanguage {
